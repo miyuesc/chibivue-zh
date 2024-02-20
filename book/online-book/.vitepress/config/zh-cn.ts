@@ -11,7 +11,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         text: '入门',
         collapsed: false,
         items: [
-          { text: '入门', link: '/zh-cn/00-introduction/010-about' },
+          { text: '开篇', link: '/zh-cn/00-introduction/010-about' },
           {
             text: 'Vue.js 是什么?',
             link: '/zh-cn/00-introduction/020-what-is-vue',
