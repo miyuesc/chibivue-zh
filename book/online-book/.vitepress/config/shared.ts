@@ -5,7 +5,7 @@ export const sharedConfig = defineConfig({
   appearance: 'dark',
   description:
     'Writing Vue.js: Step by Step, from just one line of "Hello, World".',
-  lang: 'ja',
+  lang: 'zh-cn',
   srcDir: 'src',
   srcExclude: ['__wip'],
   head: [
