@@ -1,14 +1,14 @@
-# I want to develop using Single File Component.
+# Single File Component で開発したい
 
-## How is SFC implemented?
+## SFC、どうやって実現している？
 
-## Target
+## 目標物
 
-Now, let's finally start working on supporting Single File Component (SFC).  
-So, how should we go about supporting it? SFC, like templates, is used during development and does not exist in the runtime.  
-For those of you who have finished developing the template, I think it's a simple matter of how to compile it.
+ここからはいよいよ SFC(Single File Component)の対応をやっていきます。  
+さて、どのように対応していきましょう。SFC はテンプレートと同様、開発時に使われるものでランタイム上には存在しません。  
+テンプレートの開発を終えたみなさんにとっては何をどのようにコンパイルすればいいかは簡単な話だと思います。
 
-You just need to convert the following SFC code:
+以下のような SFC を
 
 ```vue
 <script>
@@ -48,7 +48,7 @@ export default {
 </style>
 ```
 
-into the following JS code:
+以下のような JS のコードに変換すれば良いのです。
 
 ```ts
 export default {
@@ -75,24 +75,25 @@ export default {
 }
 ```
 
-(You may be wondering about the styles! But for now, let's forget about that and focus on the template and script.)
+(えっスタイルは!? と思った方もいるかもしれませんが、一旦そのことは忘れて template と script について考えてみましょう。)
 
-## When and how should we compile?
+## どのタイミングでいつどうやってコンパイルするの？
 
-In conclusion, "we compile when the build tool resolves the dependencies".
-In most cases, SFC is imported and used from other files.
-At this time, we write a plugin that compiles the `.vue` file when it is resolved and binds the result to the App.
+結論から言ってしまうと、「ビルドツールが依存を解決するときにコンパイラを噛ませる」です。
+多くの場合 SFC は他のファイルから import して使います。
+この時に、`.vue` というファイルが解決される際にコンパイルをして、結果を App にバインドさせるようなプラグインを書きます。
 
 ```ts
-import App from './App.vue' // Compile when App.vue is imported
+import App from './App.vue' // App.vueが読み込まれるときにコンパイル
 
 const app = createApp(App)
 app.mount('#app')
 ```
 
-There are various build tools, but this time let's try writing a plugin for Vite.
+さまざまなビルドツールがありますが、今回は vite のプラグインを書いてみます。
 
-Since there may be few people who have never written a Vite plugin, let's start by getting familiar with plugin implementation using a simple sample code. Let's create a simple Vue project for now.
+vite のプラグインを書いたことのない方も少ないと思うので、まずは簡単なサンプルコードでプラグインの実装に慣れてみましょう。
+とりあえず簡単な vue のプロジェクトを作ってみます。
 
 ```sh
 pwd # ~
@@ -105,7 +106,7 @@ cd plugin-sample
 ni
 ```
 
-Let's take a look at the vite.config.ts file of the created project.
+作った PJ の vite.config.ts を見てみましょう。
 
 ```ts
 import { defineConfig } from 'vite'
@@ -117,10 +118,10 @@ export default defineConfig({
 })
 ```
 
-You can see that it adds `@vitejs/plugin-vue` to the plugins.
-Actually, when creating a Vue project with Vite, SFC can be used thanks to this plugin.
-This plugin implements the SFC compiler according to the Vite plugin API, and compiles Vue files into JS files.
-Let's try creating a simple plugin in this project.
+何やら@vitejs/plugin-vue を plugin に追加しているのがわかるかと思います。  
+実は、vite で vue の PJ を作るとき、SFC が使えているのはこれのおかげなのです。  
+このプラグインには SFC のコンパイラが vite のプラグインの API に沿って実装されていて、Vue ファイルを JS ファイルにコンパイルしています。  
+このプロジェクトで簡単なプラグインを作ってみましょう。
 
 ```ts
 import { defineConfig, Plugin } from 'vite'
@@ -152,17 +153,17 @@ function myPlugin(): Plugin {
 }
 ```
 
-I created it with the name `myPlugin`.
-Since it's simple, I think many of you can understand it without explanation, but I'll explain it just in case.
+myPlugin という名前で作ってみました。  
+簡単なので説明しなくても読める方も多いと思いますが一応説明しておきます。
 
-The plugin conforms to the format required by Vite. There are various options, but since this is a simple sample, I only used the `transform` option.
-I recommend checking the official documentation and other resources for more information: https://vitejs.dev/guide/api-plugin.html
+プラグインは vite が要求する形式に合わせます。いろんなオプションがありますが、今回は簡単なサンプルなので transform オプションのみを使用しました。  
+他は公式ドキュメント等を眺めてもらえるのがいいかと思います。https://vitejs.dev/guide/api-plugin.html
 
-In the `transform` function, you can receive `code` and `id`. You can think of `code` as the content of the file and `id` as the file name.
-As a return value, you put the result in the `code` property.
-You can write different processing for each file type based on the `id`, or modify the `code` to rewrite the content of the file.
-In this case, I added 100 console logs to the beginning of the file's content for files ending with `*.sample.js`.
-Now, let's implement a sample `plugin.sample.js` and check it.
+transform では`code`と`id`を受け取ることができます。code はファイルの内容、id はファイル名と思ってもらって良いです。
+戻り値として、code というプロパティに成果物を突っ込みます。  
+あとは id によってファイルの種類ごとに処理を書いたり、code をいじってファイルの内容を書き換えたりすれば OK です。  
+今回は、`*.sample.js`というファイルに対して、ファイルの内容の先頭に console を 100 個数仕込むように書き換えてみました。  
+では実際に、適当な plugin.sample.js を実装をして確認してみます。
 
 ```sh
 pwd # ~/plugin-sample
@@ -198,7 +199,7 @@ import './plugin.sample.js' // 追加
 createApp(App).mount('#app')
 ```
 
-Let's check it in the browser.
+ブラウザで確認してみましょう。
 
 ```sh
 pwd # ~/plugin-sample
@@ -209,23 +210,23 @@ nr dev
 
 ![sample_vite_plugin_source](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/sample_vite_plugin_source.png)
 
-You can see that the source code has been modified properly.
+ちゃんとソースコードが改変されていることがわかります。
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler)
 
-## Implementing the SFC Compiler
+## SFC コンパイラを実装していく
 
-## Preparation
+## 準備
 
-Although this is a sample plugin that we created earlier, let's delete it because it is no longer needed.
+先ほど作ったサンプルのプラグインなのですが、もう不要なので消してしまいましょう
 
 ```sh
 pwd # ~
 rm -rf ./plugin-sample
 ```
 
-This is the main part of the plugin, but since this is originally outside the scope of vuejs/core, we will create a directory called `@extensions` in the `packages` directory and implement it there.
+plugin の本体なのですが、本来これは vuejs/core の範囲外なので packages に`@extensions`というディレクトリを切ってそこに実装していきます。
 
 ```sh
 pwd # ~
@@ -249,8 +250,8 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-Now, let's implement the SFC compiler. However, it may be difficult to imagine without any substance, so let's implement a playground and do it while running it.  
-We will create a simple SFC and load it.
+ここから SFC のコンパイラを実装していくのですが、実態がないとイメージが湧きづらいかと思うので playground を実装してみて、動かしながらやっていこうかと思います。  
+簡単な SFC とその読み込みを行います。
 
 ```sh
 pwd # ~
@@ -344,17 +345,17 @@ export default defineConfig({
 })
 ```
 
-Let's try starting in this state.
+この状態で起動してみましょう。
 
 ![vite_error](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/vite_error.png)
 
-Of course, it will result in an error. Well done (?).
+もちろんエラーになります。やったね( ？　)
 
-## Resolving the Error
+## エラーの解消
 
-Let's resolve the error for now. We don't aim for perfection right away.
-First, let's limit the target of `transform` to "\*.vue".
-We can write a branching statement with `id` as we did in the sample, but since Vite provides a function called `createFilter`, let's create a filter using that. (There is no particular reason for this.)
+とりあえずエラーを解消していきましょう。いきなり完璧なものは目指しません。  
+まず、transform の対象を「\*.vue」に限定してあげましょう。
+sample でやったように id で分岐を書いてもいいのですが、せっかく vite から createFilter という関数が提供されているのでそれでフィルターを作ります。(特に理由はないです。)
 
 `~/packages/@extensions/vite-plugin-chibivue/index.ts`
 
@@ -376,14 +377,14 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-We created a filter and transformed the file content to `export default {}` if it was a Vue file.
-The error should disappear and the screen should not display anything.
+フィルターを作り、vue ファイルだった場合はファイル内容 `export default {}` に transform してみました。  
+おそらくエラーは消え、画面は何も表示されない感じになっているかと思います。
 
-## Implementation of the Parser on compiler-sfc
+## パーサの実装 on compiler-sfc
 
-Now, this is just a temporary solution, so let's implement a proper solution.
-The role of vite-plugin is to enable transformation with Vite, so the parsing and compilation are in the main Vue package.
-That is the `compiler-sfc` directory.
+さて、これではただのその場しのぎなのでちゃんとした実装をしていきます。  
+vite-plugin での役割はあくまで vite を利用する際に vite で transform できるようにするためのものなので、パースやコンパイラは vue の本体にあります。  
+それが`compiler-sfc`というディレクトリです。
 
 ```mermaid
   flowchart LR
@@ -412,9 +413,9 @@ That is the `compiler-sfc` directory.
 
 https://github.com/vuejs/core/blob/main/.github/contributing.md#package-dependencies
 
-The SFC compiler is the same for both Vite and Webpack. The core implementation is in `compiler-sfc`.
+SFC のコンパイラは vite だろうが webpack だろうがコアな部分は同じです。それらの実装をになっているのが`compiler-sfc`です。
 
-Let's create `compiler-sfc`.
+`compiler-sfc`を作っていきましょう。
 
 ```sh
 pwd # ~
@@ -422,7 +423,7 @@ mkdir packages/compiler-sfc
 touch packages/compiler-sfc/index.ts
 ```
 
-In SFC compilation, the SFC is represented by an object called `SFCDescriptor`.
+SFC のコンパイルでは `SFCDescriptor` というオブジェクトで SFC を表現します。
 
 ```sh
 touch packages/compiler-sfc/parse.ts
@@ -461,13 +462,13 @@ export declare interface SFCStyleBlock extends SFCBlock {
 }
 ```
 
-Well, there's nothing particularly difficult. It's just an object that represents the SFC information.
+まあ、特に難しいことはないです。SFC の情報をオブジェクトで表現しただけです。
 
-In `packages/compiler-sfc/parse.ts`, we will parse the SFC file (string) into `SFCDescriptor`.
-Some of you may be thinking, "What? You worked so hard on the template parser, and now you're creating another parser...? It's a hassle." But don't worry.
-The parser we're going to implement here is not a big deal. That's because we're just separating the template, script, and style by combining what we've created so far.
+`packages/compiler-sfc/parse.ts`では SFC ファイル(文字列)を `SFCDescriptor` にパースします。  
+「ええ。あんだけテンプレートのパースを頑張ったのにまたパーサつくるのかよ。。面倒臭い」と思った方もいるかも知れませんが、安心してください。  
+ここで実装するパーサは大したものではないです。というのも、これまで作ってきたものを組み合わせて template、script、style を分離するだけなので楽ちんです。
 
-First, as a preparation, export the template parser we created earlier.
+まず、下準備として以前作った template のパーサを export してあげます。
 
 `~/packages/compiler-dom/index.ts`
 
@@ -478,13 +479,13 @@ export function compile(template: string) {
   return baseCompile(template)
 }
 
-// Export the parser
+// パーサをexportしてあげる
 export function parse(template: string) {
   return baseParse(template)
 }
 ```
 
-Keep these interfaces in the compiler-sfc side.
+これらの interface を compiler-sfc 側で持っておいてあげます。
 
 ```sh
 pwd # ~
@@ -502,7 +503,7 @@ export interface TemplateCompiler {
 }
 ```
 
-Then, just implement the parser.
+あとはパーサを実装してあげるだけです。
 
 `packages/compiler-sfc/parse.ts`
 
@@ -510,6 +511,12 @@ Then, just implement the parser.
 import { ElementNode, NodeTypes, SourceLocation } from '../compiler-core'
 import * as CompilerDOM from '../compiler-dom'
 import { TemplateCompiler } from './compileTemplate'
+
+/**
+ * =========
+ * 一部省略
+ * =========
+ */
 
 export interface SFCParseOptions {
   filename?: string
@@ -578,7 +585,8 @@ function createBlock(node: ElementNode, source: string): SFCBlock {
 }
 ```
 
-I think it's easy for everyone who has implemented the parser so far. Let's actually parse SFC in the plugin.
+ここまでパーサを実装してきたみなさんにとっては簡単だと思います。  
+実際に SFC を plugin 側でパースしてみましょう。
 
 `~/packages/@extensions/vite-plugin-chibivue/index.ts`
 
@@ -606,25 +614,25 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-This code runs in the process where Vite is running, which means it is executed in Node, so I think the console output is displayed in the terminal.
+このコードは vite が動いているプロセス、つまり node で実行されるので console はターミナルに出力されているかと思います。
 
 ![parse_sfc1](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/parse_sfc1.png)
 
-/_ Omitted for brevity _/
+/_ 途中省略 _/
 
 ![parse_sfc2](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/parse_sfc2.png)
 
-It seems that parsing was successful. Great job!
+無事にパースできているようです。やったね！
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler2)
 
-## Compiling the template section
+## template 部分のコンパイル
 
-`descriptor.script.content` and `descriptor.template.content` contain the source code of each section.  
-Let's compile them successfully. Let's start with the template section.  
-We already have the template compiler.  
-However, as you can see from the following code,
+`descriptor.script.content` と `descriptor.template.content`にはそれぞれのソースコードが入っています。  
+これらを使って上手くコンパイルしたいです。template の方からやっていきましょう。  
+テンプレートのコンパイラはすでに持っています。  
+しかし、以下のコードを見てもらえればわかるのですが、
 
 ```ts
 export const generate = ({
@@ -641,10 +649,10 @@ export const generate = ({
 }
 ```
 
-This assumes that it will be used with the Function constructor, so it includes the `return` statement at the beginning.  
-In the SFC compiler, we only want to generate the render function, so let's make it possible to branch with compiler options.  
-Let's make it possible to receive options as the second argument of the compiler and specify a flag called `isBrowser`.  
-When this variable is `true`, it outputs code that assumes it will be `new` on the runtime, and when it is `false`, it simply generates code.
+これは Function コンストラクタで new する前提の物になってしまっているので先頭に return がついてしまっています。
+SFC のコンパイラでは render 関数だけを生成したいので、コンパイラのオプションで分岐できるようにしましょう。
+コンパイラの第 2 引数としてオプションを受け取れるようにし、'isBrowser'というフラグを指定可能にします。
+この変数が true の時はランタイム上で new される前提のコードを出力し、false の場合は単にコードを生成します。
 
 ```sh
 pwd # ~
@@ -700,7 +708,7 @@ export const generate = (
 }
 ```
 
-I also added the import statement. I changed it to add the generated source code to the `output` array.
+ついでに import 文を足しておきました。output という配列にソースコードを詰めていく感じにも変更してます。
 
 ```ts
 import type { Plugin } from 'vite'
@@ -735,24 +743,26 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-Now you should be able to compile the render function. Let's check it in the browser's source.
+これで render 関数をコンパイルできるようになっていると思います。ブラウザの source で確認してみましょう。
 
-However, there is a small problem.
+と、言いたいところなのですが、実は少し問題があります。
 
-When binding data to the template, I think you are using the `with` statement. However, due to the nature of Vite handling ESM, it cannot process code that only works in non-strict mode (sloppy mode) and cannot handle `with` statements.  
-So far, it hasn't been a problem because I was simply passing code (strings) containing `with` statements to the Function constructor and making it a function in the browser, but now it throws an error. You should see an error like this:
+データをテンプレートにバインドする際に、with 文を使用していると思うのですが、Vite は ESM を扱う都合上、非厳格モード (sloppy モード) でのみ動作するコードを処理できず、  
+with 文を扱うことができません。  
+これまでは vite 上ではなく、単に with 文を含むコード(文字列)を Function コンストラクタに渡してブラウザ上で関数化していたので特に問題にはなっていませんでしたが、
+今回はエラーになってしいます。以下のようなエラーが出るはずです。
 
 > Strict mode code may not include a with statement
 
-This is also described in the Vite official documentation as a troubleshooting tip.
+これについては Vite の公式ドキュメントの方にもトラブルシューティングとして記載されています。
 
-[Syntax Error / Type Error Occurs (Vite)](https://vitejs.dev/guide/troubleshooting.html#syntax-error-type-error-occurs)
+[Syntax Error / Type Error が発生する (Vite)](https://ja.vitejs.dev/guide/troubleshooting.html#syntax-error-type-error-%E3%81%8B%E3%82%99%E7%99%BA%E7%94%9F%E3%81%99%E3%82%8B)
 
-As a temporary solution, let's try to generate code that does not include the `with` statement when it is not in browser mode.
+今回は、一時的な対応策として、ブラウザモードでない場合には with 文を含まないコードを生成するようにしてみます。
 
-Specifically, for the data to be bound, let's try to control it by adding the prefix `_ctx.` instead of using the `with` statement.  
-Since this is a temporary solution, it is not very strict, but I think it will work generally.  
-(The proper solution will be implemented in a later chapter.)
+具体的には、バインド対象のデータに関しては with 文を使用せずに prefix として `_cxt.`　を付与する形で制御してみます。  
+一時的な対応なのであまり厳格ではないのですが、概ね動作するようになると思います。  
+(ちゃんとした対応は後のチャプターで行います。)
 
 ```ts
 export const generate = (
@@ -763,7 +773,7 @@ export const generate = (
   },
   option: Required<CompilerOptions>,
 ): string => {
-  // Generate code that does not include the `with` statement when `isBrowser` is false
+  // isBrowser が false の場合は with 文を含まないコードを生成する
   return `${option.isBrowser ? 'return ' : ''}function render(_ctx) {
     ${option.isBrowser ? 'with (_ctx) {' : ''}
       const { h } = ChibiVue;
@@ -787,7 +797,7 @@ const genProp = (
       switch (prop.name) {
         case 'on':
           return `${toHandlerKey(prop.arg)}: ${
-            option.isBrowser ? '' : '_ctx.' // -------------------- Here
+            option.isBrowser ? '' : '_ctx.' // -------------------- ここ
           }${prop.exp}`
         default:
           // TODO: other directives
@@ -807,20 +817,20 @@ const genInterpolation = (
   node: InterpolationNode,
   option: Required<CompilerOptions>,
 ): string => {
-  return `${option.isBrowser ? '' : '_ctx.'}${node.content}` // ------------ Here
+  return `${option.isBrowser ? '' : '_ctx.'}${node.content}` // ------------ ここ
 }
 ```
 
 ![compile_sfc_render](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/compile_sfc_render.png)
 
-It seems that it was compiled successfully. All that's left is to extract the script in the same way and put it into the default exports.
+上手くコンパイルできているようです。あとは同じ要領で、どうにかして script を引っこ抜いて default exports に突っ込めば OK です。
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler3)
 
-## Compiling the script section
+## script 部分のコンパイル
 
-Now, the original script section of SFC looks like this:
+さて、元々の SFC の script 部分は以下のようになっています。
 
 ```ts
 export default {
@@ -828,7 +838,7 @@ export default {
 }
 ```
 
-I want to extract only the following part:
+これらを先ほど生成した render 関数といい感じに mix して export したいのですが、どうにか
 
 ```ts
 {
@@ -836,9 +846,10 @@ I want to extract only the following part:
 }
 ```
 
-Is there any way to do this?
+の部分だけ取り出せないでしょうか？
 
-If I can extract this part, I can mix it nicely with the previously generated render function and export it as follows:
+もしこの部分を取り出すことができたら、
+以下のようにしてあげれば良いことになります。
 
 ```ts
 const _sfc_main = {
@@ -848,9 +859,9 @@ const _sfc_main = {
 export default { ..._sfc_main, render }
 ```
 
-## Using external libraries
+## 外部ライブラリを使う
 
-To achieve the above, I will use the following two libraries:
+上記のようなことをしたいのですが結論から言うと以下の 2 つのライブラリを使って楽に実装します。
 
 - @babel/parser
 - magic-string
@@ -861,7 +872,16 @@ https://babeljs.io
 
 [What is Babel](https://babeljs.io/docs)
 
-You may have heard of Babel if you are familiar with JavaScript. Babel is a toolchain used to convert JavaScript into backward-compatible versions. In simple terms, it is a compiler (transpiler) from JS to JS. In this case, I will use Babel not only as a compiler but also as a parser. Babel has an internal parser for converting to AST, as it plays the role of a compiler. AST stands for Abstract Syntax Tree, which is a representation of JavaScript code. You can find the AST specification here (https://github.com/estree/estree). Although you can refer to the GitHub md file, I will briefly explain AST in JavaScript. The entire program is represented by a Program AST node, which contains an array of statements (represented using TS interfaces for clarity).
+こちらは普段 JavaScript を使っている方はよく聞くかも知れません。  
+Babel は JavaScript の後方互換バージョンに変換するために使用されるツールチェインです。  
+簡単に言うと、JS から JS へのコンパイラ(トランスパイラ)です。  
+今回は Babel をコンパイラとしてだけではなく、パーサとして利用します。  
+Babel はコンパイラとしての役割を持つので、もちろん内部では AST に変換するためのパーサを実装しています。  
+そのパーサをライブラリとして利用ます。  
+さらっと AST という言葉を出しましたが、JavaScript ももちろん AST としての表現を持っています。  
+こちらに AST の仕様があります。(https://github.com/estree/estree)  
+上記の GitHub の md ファイルを見てもらっても良いのですが、簡単に JavaScript の AST について説明しておくと、  
+まずプログラム全体は Program という AST ノードで表現されていて、Statement を配列で持ちます。(わかりやすいように TS の interface で表現しています。)
 
 ```ts
 interface Program {
@@ -869,42 +889,42 @@ interface Program {
 }
 ```
 
-Statement represents a "statement" in JavaScript, which is a collection of statements. Examples include "variable declaration statement," "if statement," "for statement," and "block statement."
+Statement というのは日本で言うと「文」です。JavaScript は文の集まりです。具体的には「変数宣言文」や「if 文」「for 文」「ブロック」などが挙げられます。
 
 ```ts
 interface Statement {}
 
 interface VariableDeclaration extends Statement {
-  /* omitted */
+  /* 省略 */
 }
 
 interface IfStatement extends Statement {
-  /* omitted */
+  /* 省略 */
 }
 
 interface ForStatement extends Statement {
-  /* omitted */
+  /* 省略 */
 }
 
 interface BlockStatement extends Statement {
   body: Statement[]
 }
-// There are many more
+// 他にもたくさんある
 ```
 
-Statements usually have an "expression" in most cases. An expression is something that can be assigned to a variable. Examples include "object," "binary operation," and "function call."
+そして、文というのは多くの場合「Expression(式)」を持ちます。式というのは変数に代入できる物だと考えてもらえれば良いです。具体的には「オブジェクト」や「2 項演算」「関数呼び出し」などが挙げられます。
 
 ```ts
 interface Expression {}
 
 interface BinaryExpression extends Expression {
-  operator: '+' | '-' | '*' | '/' // There are many more, but omitted
+  operator: '+' | '-' | '*' | '/' // 他にもたくさんあるが省略
   left: Expression
   right: Expression
 }
 
 interface ObjectExpression extends Expression {
-  properties: Property[] // omitted
+  properties: Property[] // 省略
 }
 
 interface CallExpression extends Expression {
@@ -912,86 +932,91 @@ interface CallExpression extends Expression {
   arguments: Expression[]
 }
 
-// There are many more
+// 他にもたくさんある
 ```
 
-If we consider an if statement, it has the following structure:
+if 文について考えると、このような構造をとることがわかります。
 
 ```ts
 interface IfStatement extends Statement {
-  test: Expression // condition
-  consequent: Statement // statements to be executed if the condition is true
-  alternate: Statement | null // statements to be executed if the condition is false
+  test: Expression // 条件値
+  consequent: Statement // 条件値がtrueの場合に実行される文
+  alternate: Statement | null // 条件値がfalseの場合に実行される文
 }
 ```
 
-In this way, JavaScript syntax is parsed into the AST mentioned above. I think this explanation is easy to understand for those who have already implemented the template compiler for chibivue. (It's the same thing)
+このように、JavaScript の構文は上記のような AST にパースされるのです。既に chibivue のテンプレートのコンパイラを実装したみなさんにとっては分かりやすい話だと思います。(同じこと)
 
-The reason why I use Babel is twofold. First, it's simply because it's cumbersome. If you have implemented a parser before, it may be technically possible to implement a JS parser while referring to estree. However, it is very cumbersome, and it is not very important for the purpose of "deepening understanding of Vue" in this case. The other reason is that the official Vue also uses Babel for this part.
+なぜ Babel を使うのかというと、理由は２つあって、1 つは単純にめんどくさいからです。パーサを実装したことあるみなさんなら estree を見ながら JS のパーサを実装することも技術的には可能かも知れません。
+けど、とてもめんどくさいし、今回の「Vue の理解を深める」という点においてはあまり重要ではありません。もう一つの理由は本家 Vue もこの部分は Babel を使っているという点です。
 
 ### magic-string
 
 https://github.com/rich-harris/magic-string
 
-There is another library I want to use. This library is also used by the official Vue. It is a library that makes string manipulation easier.
+もう一つ使いたいライブラリがあります。こちらも本家の Vue が使っているライブラリです。  
+こちらは文字列操作を便利にするライブラリです。
 
 ```ts
 const input = 'Hello'
 const s = new MagicString(input)
 ```
 
-You can generate an instance like this and use the convenient methods provided by the instance to manipulate strings. Here are some examples:
+のようにインスタンスを生成し、そのインスタンスに生えている便利なメソッドを利用して文字列操作をしていきます。
+いくつか例をあげます。
 
 ```ts
-s.append('!!!') // Append to the end
-s.prepend('message: ') // Prepend to the beginning
-s.overwrite(9, 13, 'こんにちは') // Overwrite within a range
+s.append('!!!') // 末尾に追加する
+s.prepend('message: ') // 先頭に追加する
+s.overwrite(9, 13, 'こんにちは') // 範囲を指定して上書き
 ```
 
-There is no need to use it forcefully, but I will use it to align with the official Vue.
+特に無理して使う必要はないのですが、本家の Vue に合わせて使うことにします。
 
-Whether it's Babel or magic-string, you don't need to understand the actual usage at this point. I will explain and align the implementation later, so it's okay to have a rough understanding for now.
+Babel にしろ magic-string にしろ、実際の使い方等は実装の段階で合わせて説明するのでなんとなくの理解で問題ないです。
 
-## Rewriting the default export of the script
+## script の default export を書き換える
 
-To recap the current goal:
+今一度現在の目標を確認しておくと、
 
 ```ts
 export default {
   setup() {},
-  // Other options
+  // その他のオプション
 }
 ```
 
-I want to rewrite the code above to:
+というコードを、
 
 ```ts
 const _sfc_main = {
   setup() {},
-  // Other options
+  // その他のオプション
 }
 
 export default { ..._sfc_main, render }
 ```
 
-In other words, if I can extract the export target from the original code's export statement and assign it to a variable called `_sfc_main`, I will achieve the goal.
+というふうに書き換えたいわけです。
 
-First, let's install the necessary libraries.
+つまりは、元々のコードの export 文から良い感じに export 対象をを抜き出し、\_sfc_main という変数に代入できるようになればゴールということです。
+
+まずは必要なライブラリをインストールします。
 
 ```sh
 pwd # ~
 ni @babel/parser magic-string
 ```
 
-Create a file called "rewriteDefault.ts".
+rewriteDefault.ts というファイルを作成します。
 
 ```sh
 pwd # ~
 touch packages/compiler-sfc/rewriteDefault.ts
 ```
 
-Make sure that the function "rewriteDefault" can receive the target source code as "input" and the variable name to be bound as "as".  
-Return the converted source code as the return value.
+input に対象のソースコード、as に最終的にバインドしたい変数名を受け取れるようにしておきます。  
+戻り値として変換されたソースコードを返します。
 
 `~/packages/compiler-sfc/rewriteDefault.ts`
 
@@ -1002,7 +1027,8 @@ export function rewriteDefault(input: string, as: string): string {
 }
 ```
 
-First, let's handle the case where the export declaration does not exist. Since there is no export, bind an empty object and finish.
+まず手始めとして、そもそも export の宣言が存在しない場合のハンドリングをしておきます。
+export が存在しないわけなので、からのオブジェクトをバインドして終了です。
 
 ```ts
 const defaultExportRE = /((?:^|\n|;)\s*)export(\s*)default/
@@ -1022,9 +1048,7 @@ export function hasDefaultExport(input: string): boolean {
 }
 ```
 
-Here is the translation of the given Japanese text:
-
-Here comes the Babel parser and magic-string.
+ここで Babel パーサと magic-string の登場です。
 
 ```ts
 import { parse } from '@babel/parser'
@@ -1043,33 +1067,35 @@ export function hasDefaultExport(input: string): boolean {
 }
 ```
 
-From here, we will manipulate the string `s` based on the JavaScript AST (Abstract Syntax Tree) obtained by the Babel parser. Although it is a bit long, I will provide additional explanations in the comments in the source code. Basically, we traverse the AST and write conditional statements based on the `type` property, and manipulate the string `s` using the methods of `magic-string`.
+ここからは Babel パーサによって得られた JavaScript の AST(ast) を元に s を文字列操作していきます。
+少し長いですが、ソースコード内のコメントで補足の説明も入れていきます。
+基本的には AST を手繰っていって、type によって分岐処理を書いて magic-string のメソッドで s を操作していくだけです。
 
 ```ts
 export function hasDefaultExport(input: string): boolean {
   // .
   // .
   ast.forEach(node => {
-    // In case of default export
+    // default exportの場合
     if (node.type === 'ExportDefaultDeclaration') {
       if (node.declaration.type === 'ClassDeclaration') {
-        // If it is `export default class Hoge {}`, replace it with `class Hoge {}`
+        // `export default class Hoge {}` だった場合は、`class Hoge {}` に置き換える
         s.overwrite(node.start!, node.declaration.id.start!, `class `)
-        // Then, add code like `const ${as} = Hoge;` at the end.
+        // その上で、`const ${as} = Hoge;` というようなコードを末尾に追加してあげればOK.
         s.append(`\nconst ${as} = ${node.declaration.id.name}`)
       } else {
-        // For other default exports, replace the declaration part with a variable declaration.
+        // それ以外の default exportは宣言部分を変数宣言に置き換えてあげればOk.
         // eg 1) `export default { setup() {}, }`  ->  `const ${as} = { setup() {}, }`
         // eg 2) `export default Hoge`  ->  `const ${as} = Hoge`
         s.overwrite(node.start!, node.declaration.start!, `const ${as} = `)
       }
     }
 
-    // There may be a default export in the declaration even in the case of named export.
-    // Mainly 3 patterns
-    //   1. In the case of declaration like `export { default } from "source";`
-    //   2. In the case of declaration like `export { hoge as default }` from 'source'
-    //   3. In the case of declaration like `export { hoge as default }`
+    // named export の場合でも宣言中に default exportが発生する場合がある.
+    // 主に3パターン
+    //   1. `export { default } from "source";`のような宣言の場合
+    //   2. `export { hoge as default }` from 'source' のような宣言の場合
+    //   3. `export { hoge as default }` のような宣言の場合
     if (node.type === 'ExportNamedDeclaration') {
       for (const specifier of node.specifiers) {
         if (
@@ -1077,11 +1103,11 @@ export function hasDefaultExport(input: string): boolean {
           specifier.exported.type === 'Identifier' &&
           specifier.exported.name === 'default'
         ) {
-          // If there is a keyword `from`
+          // `from`というキーワードがある場合
           if (node.source) {
             if (specifier.local.name === 'default') {
-              // 1. In the case of declaration like `export { default } from "source";`
-              // In this case, extract it into an import statement and give it a name, then bind it to the final variable.
+              // 1. `export { default } from "source";`のような宣言の場合
+              // この場合はimport文に抜き出して名前をつけてあげ、最終的な変数にバインドする
               // eg) `export { default } from "source";`  ->  `import { default as __VUE_DEFAULT__ } from 'source'; const ${as} = __VUE_DEFAULT__`
               const end = specifierEnd(input, specifier.local.end!, node.end!)
               s.prepend(
@@ -1091,8 +1117,8 @@ export function hasDefaultExport(input: string): boolean {
               s.append(`\nconst ${as} = __VUE_DEFAULT__`)
               continue
             } else {
-              // 2. In the case of declaration like `export { hoge as default }` from 'source'
-              // In this case, rewrite all specifiers as they are in the import statement, and bind the variable that is as default to the final variable.
+              // 2. `export { hoge as default }` from 'source' のような宣言の場合
+              // この場合は一度全てのspecifierをそのままimport文に書き換え、as defaultになっている変数を最終的な変数にバインドする
               // eg) `export { hoge as default } from "source";`  ->  `import { hoge } from 'source'; const ${as} = hoge
               const end = specifierEnd(
                 input,
@@ -1106,8 +1132,8 @@ export function hasDefaultExport(input: string): boolean {
                 )} } from '${node.source.value}'\n`,
               )
 
-              // 3. In the case of declaration like `export { hoge as default }`
-              // In this case, simply bind it to the final variable.
+              // 3. `export { hoge as default }`のような宣言の場合
+              // この場合は単純に最終的な変数にバインドしてあげる
               s.overwrite(specifier.start!, end, ``)
               s.append(`\nconst ${as} = ${specifier.local.name}`)
               continue
@@ -1124,7 +1150,7 @@ export function hasDefaultExport(input: string): boolean {
   // .
 }
 
-// Calculate the end of the declaration statement
+// 宣言文の終端を算出する
 function specifierEnd(input: string, end: number, nodeEnd: number | null) {
   // export { default   , foo } ...
   let hasCommas = false
@@ -1144,7 +1170,7 @@ function specifierEnd(input: string, end: number, nodeEnd: number | null) {
 }
 ```
 
-Now you can rewrite the default export. Let's try using it in a plugin.
+これで default export の書き換えができるようになりました。実際に plugin で使ってみましょう。
 
 ```ts
 import type { Plugin } from 'vite'
@@ -1166,14 +1192,14 @@ export default function vitePluginChibivue(): Plugin {
 
       const { descriptor } = parse(code, { filename: id })
 
-      // --------------------------- From here
+      // --------------------------- ここから
       const SFC_MAIN = '_sfc_main'
       const scriptCode = rewriteDefault(
         descriptor.script?.content ?? '',
         SFC_MAIN,
       )
       outputs.push(scriptCode)
-      // --------------------------- To here
+      // --------------------------- ここまで
 
       const templateCode = compile(descriptor.template?.content ?? '', {
         isBrowser: false,
@@ -1181,7 +1207,7 @@ export default function vitePluginChibivue(): Plugin {
       outputs.push(templateCode)
 
       outputs.push('\n')
-      outputs.push(`export default { ...${SFC_MAIN}, render }`) // Here
+      outputs.push(`export default { ...${SFC_MAIN}, render }`) // ここ
 
       return { code: outputs.join('\n') }
     },
@@ -1189,7 +1215,7 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-Before that, let's make a small modification.
+その前にちょっとだけ修正します。
 
 `~/packages/runtime-core/component.ts`
 
@@ -1198,7 +1224,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
   // .
   // .
   // .
-  // Add the component's render option to the instance
+  // componentのrenderオプションをインスタンスに
   const { render } = component
   if (render) {
     instance.render = render as InternalRenderFunction
@@ -1206,30 +1232,32 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
 }
 ```
 
-Now you should be able to render!!!
+これでレンダリングができるようになっているはずです!!！
 
 ![render_sfc](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/render_sfc.png)
 
-The styles are not applied because they are not supported, but now you can render the component.
+スタイルの対応をしていないのでスタイルが当たっていないですがこれでレンダリングはできるようになりました。
 
-## Style Blocks
+## スタイルブロック
 
-### Virtual Modules
+### 仮想モジュール
 
-Let's also support styles. In Vite, you can import CSS files by using the `.css` extension.
+スタイルも対応してしまいます。vite では css という拡張子のファイルを import することでスタイルを読み込めるようになっています。
 
 ```js
 import 'app.css'
 ```
 
-We will implement this by using Vite's virtual modules. Virtual modules allow you to keep non-existent files in memory as if they exist. You can use the `load` and `resolve` options to implement virtual modules.
+vite の仮想モジュールという機能を使って SFC から仮想的な CSS ファイルを作り、アウトプットの JS ファイルの import 文に追加する方針で実装してみます。  
+仮想モジュール、と聞くとなんだか難しいように聞こえますが、「実際には存在しないファイルをあたかも存在するようにインメモリに保持しておける」と捉えてもらえれば問題ないです。  
+vite では`load`と`resolve`というオプションを使って仮想モジュールを実現することができます。
 
 ```ts
 export default function myPlugin() {
   const virtualModuleId = 'virtual:my-module'
 
   return {
-    name: 'my-plugin', // Required, displayed in warnings and errors
+    name: 'my-plugin', // 必須、警告やエラーで表示されます
     resolveId(id) {
       if (id === virtualModuleId) {
         return virtualModuleId
@@ -1244,11 +1272,25 @@ export default function myPlugin() {
 }
 ```
 
-By setting the desired module ID in `resolve` and handling the ID in `load`, you can load the module. In the example above, if you write `import { msg } from "virtual:my-module";`, `export const msg = "from virtual module"` will be loaded.
+resolve に解決したいモジュールの id を任意に設定し、load でその id をハンドリングすることによってモジュールを読み込むことができます。  
+上記の例だと、`virtual:my-module`というファイルは実際には存在しませんが、
 
-[Reference](https://vitejs.dev/guide/api-plugin.html#virtual-modules)
+```ts
+import { msg } from 'virtual:my-module'
+```
 
-Let's use the child mechanism to load the style block of the SFC as a virtual CSS file. For example, when there is a file named "App.vue", we will implement a virtual module named "App.vue.css" for the style part. The process is simple: when a file with the name `**.vue.css` is loaded, we will remove the `.css` extension from the file path (i.e., the normal Vue file) and use `fs.readFileSync` to retrieve the SFC. Then, we will parse it and retrieve the content of the style tag, which will be returned as the code.
+のように書くと`export const msg = "from virtual module"`が load されます。
+
+[参考](https://ja.vitejs.dev/guide/api-plugin.html#%E4%BB%AE%E6%83%B3%E3%83%A2%E3%82%B7%E3%82%99%E3%83%A5%E3%83%BC%E3%83%AB%E3%81%AE%E8%A6%8F%E7%B4%84)
+
+子の仕組みを使って SFC の style ブロックを仮想の css ファイルとして読み込むようにしてみます。  
+最初に言った通り、vite では css という拡張子のファイルを import すれば良いので、${SFC のファイル名}.css という仮想モジュールを作ることを考えてみます。
+
+### SFC のスタイルブロックの内容で仮想モジュールを実装する
+
+今回は、たとえば「App.vue」というファイルがあったとき、その style 部分を「App.vue.css」という名前の仮想モジュールを実装することを考えてみます。  
+やることは単純で、`**.vue.css`という名前のファイルが読み込まれたら`.css`を除いたファイルパス(つまり通常の Vue ファイル)から SFC を`fs.readFileSync`で取得し、  
+パースして style タグの内容を取得し、それを code として返します。
 
 ```ts
 export default function vitePluginChibivue(): Plugin {
@@ -1260,19 +1302,19 @@ export default function vitePluginChibivue(): Plugin {
     //  ,
     //  ,
     resolveId(id) {
-      // This ID is a non-existent path, but we handle it virtually in load, so we return the ID to indicate that it can be loaded
+      // このidは実際には存在しないパスだが、loadで仮想的にハンドリングするのでidを返してあげる (読み込み可能だということにする)
       if (id.match(/\.vue\.css$/)) return id
 
-      // For IDs that are not returned here, if the file actually exists, the file will be resolved, and if it does not exist, an error will be thrown
+      // ここでreturnされないidに関しては、実際にそのファイルが存在していたらそのファイルが解決されるし、存在していなければ存在しないというエラーになる
     },
     load(id) {
-      // Handling when .vue.css is loaded (when import is declared and loaded)
+      // .vue.cssがloadされた (importが宣言され、読み込まれた) ときのハンドリング
       if (id.match(/\.vue\.css$/)) {
         const filename = id.replace(/\.css$/, '')
-        const content = fs.readFileSync(filename, 'utf-8') // Retrieve the SFC file normally
-        const { descriptor } = parse(content, { filename }) // Parse the SFC
+        const content = fs.readFileSync(filename, 'utf-8') // 普通にSFCファイルを取得
+        const { descriptor } = parse(content, { filename }) //  SFCをパース
 
-        // Join the content and return it as the result
+        // contentをjoinsして結果とする。
         const styles = descriptor.styles.map(it => it.content).join('\n')
         return { code: styles }
       }
@@ -1283,7 +1325,7 @@ export default function vitePluginChibivue(): Plugin {
 
       const outputs = []
       outputs.push("import * as ChibiVue from 'chibivue'")
-      outputs.push(`import '${id}.css'`) // Declare the import statement for ${id}.css
+      outputs.push(`import '${id}.css'`) // ${id}.cssのimport文を宣言しておく
       //  ,
       //  ,
       //  ,
@@ -1292,18 +1334,17 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-Now, let's check in the browser.
+さて、ブラウザで確認してみましょう。
 
 ![load_virtual_css_module](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/load_virtual_css_module.png)
 
-It seems that the styles are applied correctly.
+ちゃんとスタイルが当たるようになっているようです。
 
-In the browser, you can see that the CSS is imported and a `.vue.css` file is generated virtually.
-
+ブラウザの方でも、css が import され、.vue.css というファイルが仮想的に生成されているのが分かるかと思います。  
 ![load_virtual_css_module2](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/load_virtual_css_module2.png)  
 ![load_virtual_css_module3](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/load_virtual_css_module3.png)
 
-Now you can use SFC!
+これで SFC が使えるようになりました！
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler4)

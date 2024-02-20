@@ -1,48 +1,50 @@
-# ref api (Basic Reactivity System Start)
+# ref api (Basic Reactivity System 部門スタート)
 
 ::: warning
-[Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) was released at the end of December 2023, which includes [performance improvements for reactivity](https://github.com/vuejs/core/pull/5912).  
-You should note that this online book is referencing the previous implementation.  
-We plan to update this online book at the appropriate time.
+2023 年 の 12 月末に [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) がリリースされましたが、これには [reactivity のパフォーマンス改善](https://github.com/vuejs/core/pull/5912) が含まれています。  
+このオンラインブックはそれ以前の実装を参考にしていることに注意しくてださい。  
+然るべきタイミングでこのオンラインブックも追従する予定です。  
 :::
 
-## Review of ref api (and implementation)
+## ref api のおさらい (と実装)
 
-Vue.js has various APIs related to reactivity, and among them, ref is particularly famous.  
-Even in the official documentation, it is introduced as the first topic under the name "Reactivity Core".  
+Vue.js には Reactivity に関する様々な api がありますが、中でも ref はあまりに有名です。  
+公式ドキュメントの方でも Reactivity Core という名目で、しかも一番最初に紹介されています。  
 https://vuejs.org/api/reactivity-core.html#ref
 
-So, what is ref API?
-According to the official documentation,
+ところで、ref とはどのような API でしょうか？
+公式ドキュメントによると、
 
 > The ref object is mutable - i.e. you can assign new values to .value. It is also reactive - i.e. any read operations to .value are tracked, and write operations will trigger associated effects.
 
 > If an object is assigned as a ref's value, the object is made deeply reactive with reactive(). This also means if the object contains nested refs, they will be deeply unwrapped.
 
-(Quote: https://vuejs.org/api/reactivity-core.html#ref)
+(引用: https://vuejs.org/api/reactivity-core.html#ref)
 
-In short, the ref object has two characteristics:
+とあります。
 
-- Get/set operations on the value property trigger track/trigger.
-- When an object is assigned to the value property, the value property becomes a reactive object.
+要するに、ref object というのは 2 つの性質を持ちます。
 
-To explain it in code,
+- value プロパティに対する get/set は track/trigger が呼ばれる
+- value プロパティにオブジェクトが割り当てられた際は value プロパティの値は reactive オブジェクトになる
+
+コードベースで説明しておくと、
 
 ```ts
 const count = ref(0)
-count.value++ // effect (characteristic 1)
+count.value++ // effect (性質 1 )
 
 const state = ref({ count: 0 })
-state.value = { count: 1 } // effect (characteristic 1)
-state.value.count++ // effect (characteristic 2)
+state.value = { count: 1 } // effect (性質 1 )
+state.value.count++ // effect (性質 2 )
 ```
 
-That's what it means.
+ということです。
 
-Until you can distinguish between ref and reactive, you may confuse the distinction between `ref(0)` and `reactive({ value: 0 })`, but considering the two characteristics mentioned above, you can see that they have completely different meanings.
-ref does not generate a reactive object like `{ value: x }`. The track/trigger for get/set operations on the value is performed by the implementation of ref, and if the part corresponding to x is an object, it becomes a reactive object.
+ref と reactive の区別がつかないうちは、`ref(0)`と`reactive({ value: 0 })` の区別をごちゃごちゃにしてしまいがちですが、上記の 2 つの性質から考えると全く意味が別だということがわかります。
+ref は `{ value: x }` という reactive オブジェクトを生成するわけではありません。value に対する get/value の track/trigger は ref の実装が行い、x に当たる部分がオブジェクトの場合は reactive オブジェクトにするということです。
 
-In terms of implementation, it looks like this:
+実装のイメージ的にはこういう感じです。
 
 ```ts
 class RefImpl<T> {
@@ -63,11 +65,11 @@ const toReactive = <T extends unknown>(value: T): T =>
   isObject(value) ? reactive(value) : value
 ```
 
-Let's implement ref while looking at the source code!
-There are various functions and classes, but for now, it would be sufficient to focus on the RefImpl class and the ref function.
+実際にソースコードを見ながら ref を実装してみましょう！  
+色々な関数や class がありますが、とりあえず RefImpl クラスと ref 関数を中心的に読んでもらえればよいかと思います。
 
-Once you can run the following source code, it's OK!
-(Note: The template compiler needs to support ref separately, so it won't work)
+以下のようなソースコードが動かせるようになれば OK です！
+(※注: template のコンパイラは別で ref に対応する必要があるので動きません)
 
 ```ts
 import { createApp, h, ref } from 'chibivue'
@@ -87,22 +89,22 @@ const app = createApp({
 app.mount('#app')
 ```
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/010_ref)
 
 ## shallowRef
 
-Now, let's continue implementing more ref-related APIs.  
-As mentioned earlier, one of the characteristics of ref is that "when an object is assigned to the value property, the value property becomes a reactive object". shallowRef does not have this characteristic.
+さて、続けてどんどん ref 周りの aip を実装していきます。  
+先ほど、ref の性質として「value プロパティにオブジェクトが割り当てられた際は value プロパティの値は reactive オブジェクトになる」というものを紹介しましたが、この性質を持たないのが shallowRef です。
 
 > Unlike ref(), the inner value of a shallow ref is stored and exposed as-is, and will not be made deeply reactive. Only the .value access is reactive.
 
-(Quote: https://vuejs.org/api/reactivity-advanced.html#shallowref)
+(引用: https://vuejs.org/api/reactivity-advanced.html#shallowref)
 
-The task is very simple. We can use the implementation of RefImpl as it is and skip the part of `toReactive`.  
-Let's implement it while reading the source code!
+やることは非常に単純で、RefImpl の実装はそのまま使い、`toReactive`の部分をスキップします。  
+ソースコードを読みながら実装していきましょう！
 
-Once you can run the following source code, it's OK!
+以下のようなソースコードが動かせるようになれば OK です！
 
 ```ts
 import { createApp, h, shallowRef } from 'chibivue'
@@ -126,7 +128,7 @@ const app = createApp({
         ),
 
         h(
-          'button', // Clicking does not trigger re-rendering
+          'button', // clickしても描画は更新されない
           {
             onClick: () => {
               state.value.count++
@@ -143,9 +145,9 @@ app.mount('#app')
 
 ### triggerRef
 
-As mentioned earlier, since the value of shallow ref is not a reactive object, changes to it will not trigger effects.  
-However, the value itself is an object, so it has been changed.  
-Therefore, there is an API to forcefully trigger effects. It is triggerRef.
+前述の通り、shallow ref が持つ value は reactive オブジェクトではないので、変更を加えてもエフェクトがトリガーされることはありません。  
+しかし、value 自体はオブジェクトなので変更されています。  
+そこで、強制的にトリガーさせる api が存在します。それが triggerRef です。
 
 https://vuejs.org/api/reactivity-advanced.html#triggerref
 
@@ -174,7 +176,7 @@ const app = createApp({
         ),
 
         h(
-          'button', // Clicking does not trigger re-rendering
+          'button', // clickしても描画は更新されない
           {
             onClick: () => {
               state.value.count++
@@ -184,7 +186,7 @@ const app = createApp({
         ),
 
         h(
-          'button', // The rendering is updated to the value currently held by state.value.count
+          'button', // 描画が今の state.value.count が持つ値に更新される
           { onClick: forceUpdate },
           ['force update !'],
         ),
@@ -195,24 +197,24 @@ const app = createApp({
 app.mount('#app')
 ```
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/020_shallow_ref)
 
 ## toRef
 
-toRef is an API that generates a ref to a property of a reactive object.
+toRef は reactive オブジェクトのプロパティへの ref を生成する api です。
 
 https://vuejs.org/api/reactivity-utilities.html#toref
 
-It is often used to convert specific properties of props into refs.
+props の特定のプロパティを ref に変換したりする際によく利用します。
 
 ```ts
 const count = toRef(props, 'count')
 console.log(count.value)
 ```
 
-The ref created by toRef is synchronized with the original reactive object.
-If you make changes to this ref, the original reactive object will also be updated, and if there are any changes to the original reactive object, this ref will also be updated.
+toRef によって作られた ref は元の reactive オブジェクトと同期され、
+この ref に変更を加えると元の reactive オブジェクトも更新され、元の reactive オブジェクトに変更があるとこの ref も更新されます.
 
 ```ts
 import { createApp, h, reactive, toRef } from 'chibivue'
@@ -235,17 +237,17 @@ const app = createApp({
 app.mount('#app')
 ```
 
-Let's implement while reading the source code!
+ソースコードを読みつつ実装していきましょう！
 
-※ From v3.3, the normalization feature has been added to toRef. chibivue does not implement this feature.  
-Please check the signature in the official documentation for more details! (https://vuejs.org/api/reactivity-utilities.html#toref)
+※ v3.3 からは toRef に normalization の機能が追加されました。chibivue ではこの機能を実装していません。  
+詳しくは公式ドキュメントのシグネチャをチェックしてみてください! (https://vuejs.org/api/reactivity-utilities.html#toref)
 
-Source code so far:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/030_to_ref)
 
 ## toRefs
 
-Generates refs for all properties of a reactive object.
+reactive オブジェクトの全てのプロパティの ref を生成します。
 
 https://vuejs.org/api/reactivity-utilities.html#torefs
 
@@ -274,7 +276,7 @@ const app = createApp({
 app.mount('#app')
 ```
 
-This can be easily implemented using the implementation of toRef.
+こちらは toRef の実装を使って簡単に実装できるかと思います。
 
-Source code so far:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/040_to_refs)

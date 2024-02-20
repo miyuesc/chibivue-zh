@@ -1,17 +1,17 @@
-# Supporting the v-for directive
+# v-for ディレクティブに対応する
 
-## Developer Interface to Aim for
+## 今回目指す開発者インターフェース
 
-Now, let's continue with the directive implementation. This time, let's try to support v-for.
+さて、ディレクティブ実装の続きです。今回は v-for に対応してみようと思います。
 
-Well, I think it's a familiar directive for those of you who have used Vue.js before.
+まぁ、Vue.js を触ったことあるみなさんならお馴染みのディレクティブだと思います。
 
-There are various syntaxes for v-for.
-The most basic one is looping through an array, but you can also loop through other things such as strings, object keys, ranges, and so on.
+v-for には様々な syntax があります。
+最もベーシックなのは配列をループすることですが、他にも文字列であったりオブジェクトの key, range, などなど様々なものをループできます。
 
-https://vuejs.org/v2/guide/list.html
+https://ja.vuejs.org/guide/essentials/list.html
 
-It's a bit long, but this time, let's aim for the following developer interface:
+少し長いですが、今回は以下のような開発者インターフェースを目指してみましょう。
 
 ```vue
 <script>
@@ -91,17 +91,17 @@ export default {
 </template>
 ```
 
-You might think, "Are we implementing so many things all of a sudden? It's impossible!" But don't worry, I will explain step by step.
+急にこんなにいっぱい実装するのかよ！無理だろ！と身構えてしまうかもしれませんが、安心してください、ステップバイステップで説明していきます。
 
-## Implementation Approach
+## 実装方針
 
-First, let's think about how we want to compile it roughly, and consider where the difficult points might be when implementing it.
+まず、軽くどういうふうにコンパイルしたいのかということを考えてみて、実装する際に難しそうなポイントはどこなのかということについて考えてみましょう。
 
-First, let's take a look at the desired compilation result.
+まず、目指したいコンパイル結果から見てみましょう。
 
-The basic structure is not so difficult. We will implement a helper function called renderList in the runtime-core to render the list, and compile it into an expression.
+基本的な構成はそれほど難しいものではありません。renderList というヘルパー関数を runtime-core の方に実装して、リストをレンダリングする式にコンパイルします。
 
-Example 1:
+例 1:
 
 ```html
 <!-- input -->
@@ -117,7 +117,7 @@ h(
 )
 ```
 
-Example 2:
+例 2:
 
 ```html
 <!-- input -->
@@ -135,7 +135,7 @@ h(
 )
 ```
 
-Example 3:
+例 3:
 
 ```html
 <!-- input -->
@@ -151,61 +151,65 @@ h(
 )
 ```
 
-In the future, the values passed as the first argument to renderList are expected to be not only arrays but also numbers and objects. However, for now, let's assume that only arrays are expected. The implementation of the \_renderList function itself can be understood as something similar to Array.prototype.map. As for values other than arrays, you just need to normalize them in \_renderList, so let's forget about them for now (just focus on arrays).
+後々、renderList の第 1 引数として渡す値は配列以外にも数値やオブジェクトも想定していきますが、  
+一旦、配列のみを想定すると、\_renderList 関数の実装自体は概ね Array.prototype.map と同じようなものだと理解できるかと思います。  
+配列以外の値に関しては、\_renderList の方で正規化してあげればいいだけなので、初めのうちは忘れてしまいましょう。(配列のことだけ考えてれば OK)
 
-Now, for those of you who have implemented various directives so far, implementing this kind of compiler (transformer) should not be too difficult.
+そして、ここまで様々なディレクティブを実装してきたみなさんにとってはこのようなコンパイラ(transformer) を実装するのはさほど難しい事ではないとは思います。
 
-## Key implementation points (difficult points)
+## 実装の肝 (難しいポイント)
 
-The difficult point is when using it in SFC (Single File Components). Do you remember the difference between the compiler used in SFC and the one used in the browser? Yes, it's resolving expressions using `_ctx`.
+問題は、SFC で使用する場合です。  
+SFC で使用する際のコンパイラと、ブラウザ上で使用する際のコンパイラの差異を覚えているでしょうか?  
+そうです。`_ctx` を使った式の解決です。
 
-In v-for, user-defined local variables appear in various forms, so you need to collect them properly and skip rewriteIdentifiers.
+v-for ではいろんな形でユーザー定義のローカル変数が登場するので、それらをうまく収集して rewriteIdentifiers をスキップしていく必要があります。
 
 ```ts
-// Bad example
+// ダメな例
 h(
   _Fragment,
   null,
   _renderList(
-    _ctx.fruits, // It's okay to have a prefix for fruits because it is bound from _ctx
+    _ctx.fruits, // fruits は _ctx からバインドされるものだので prefix がついていて OK
     ({ name, id }) =>
       h(
         'li',
-        { key: _ctx.id }, // It's not okay to have _ctx here
-        _ctx.name, // It's not okay to have _ctx here
+        { key: _ctx.id }, // ここに _ctx がついてはダメ
+        _ctx.name, // ここに _ctx がついてはダメ
       ),
   ),
 )
 ```
 
 ```ts
-// Good example
+// 良い例
 h(
   _Fragment,
   null,
   _renderList(
-    _ctx.fruits, // It's okay to have a prefix for fruits because it is bound from _ctx
+    _ctx.fruits, // fruits は _ctx からバインドされるものだので prefix がついていて OK
     ({ name, id }) =>
       h(
         'li',
-        { key: id }, // It's not okay to have _ctx here
-        name, // It's not okay to have _ctx here
+        { key: id }, // ここに _ctx がついてはダメ
+        name, // ここに _ctx がついてはダメ
       ),
   ),
 )
 ```
 
-There are various definitions of local variables, from example 1 to 3.
+ローカル変数の定義は様々で、例 1~3 までそれぞれあります。
 
-You need to analyze each definition and collect the identifiers to be skipped.
+それぞれの定義を解析し、スキップ対象の識別子を収集していく必要があります。
 
-Now, let's put aside how to achieve this and start implementing it from the big picture.
+さて、これをどうやって実現していくかについてですが、それは一旦おいておいて、大枠から実装を始めてしまいましょう。
 
-## Implementation of AST
+## AST の実装
 
-For now, let's define the AST as usual.
+とりあえず例の如く、AST を定義しておきます。
 
-As with v-if, we will consider the transformed AST (no need to implement the parser).
+今回も v-if の時と同様、transform 後の AST を考えていきます。(パーサの実装は必要ない)
 
 ```ts
 export const enum NodeTypes {
@@ -229,7 +233,7 @@ export interface ForNode extends Node {
   valueAlias: ExpressionNode | undefined
   keyAlias: ExpressionNode | undefined
   children: TemplateChildNode[]
-  parseResult: ForParseResult // To be explained later
+  parseResult: ForParseResult // 後述
   codegenNode?: ForCodegenNode
 }
 
@@ -241,11 +245,11 @@ export interface ForCodegenNode extends VNodeCall {
 }
 
 export interface ForRenderListExpression extends CallExpression {
-  callee: typeof RENDER_LIST // To be explained later
+  callee: typeof RENDER_LIST // 後述
   arguments: [ExpressionNode, ForIteratorExpression]
 }
 
-// Also support function expressions because callback functions are used as the second argument of renderList.
+// renderList の第二引数でコールバック関数を使用するので、関数式にも対応します。
 export interface FunctionExpression extends Node {
   type: NodeTypes.JS_FUNCTION_EXPRESSION
   params: ExpressionNode | string | (ExpressionNode | string)[] | undefined
@@ -253,7 +257,7 @@ export interface FunctionExpression extends Node {
   newline: boolean
 }
 
-// In the case of v-for, the return is fixed, so it is represented as an AST for that purpose.
+// v-for の場合、 return は決まっているので、それ用のASTとして表現します。
 export interface ForIteratorExpression extends FunctionExpression {
   returns: VNodeCall
 }
@@ -268,7 +272,7 @@ export type JSChildNode =
   | FunctionExpression // [!code ++]
 ```
 
-Regarding `RENDER_LIST`, as usual, add it to `runtimeHelpers`.
+`RENDER_LIST` に関しては、例の如く runtimeHelpers に追加しておきます。
 
 ```ts
 // runtimeHelpers.ts
@@ -286,7 +290,7 @@ export const helperNameMap: Record<symbol, string> = {
 }
 ```
 
-As for `ForParseResult`, its definition is in `transform/vFor`.
+`ForParseResult` についてですが、こちらの定義は transform/vFor にあります。
 
 ```ts
 export interface ForParseResult {
@@ -297,29 +301,29 @@ export interface ForParseResult {
 }
 ```
 
-To explain what each of them refers to,
+それぞれが何を指しているかというと、
 
-In the case of `v-for="(fruit, i) in fruits"`,
+`v-for="(fruit, i) in fruits"` のような場合に
 
 - source: `fruits`
 - value: `fruit`
 - key: `i`
 - index: `undefined`
 
-`index` is the third argument when applying an object to `v-for`.
+のようになります。`index` は v-for にオブジェクトを適応した際に 3 つ目の引数として取られるものです。
 
-https://vuejs.org/v2/guide/list.html#v-for-with-an-object
+https://ja.vuejs.org/guide/essentials/list.html#v-for-with-an-object
 
 ![v_for_ast.drawio.png](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/v_for_ast.drawio.png)
 
-Regarding `value`, if you use destructuring assignment like `{ id, name, color, }`, it will have multiple identifiers.
+value に関しては、`{ id, name, color, }` のように分割代入を使用した場合は複数の Identifier を持つことになります。
 
-We collect the identifiers defined by `value`, `key`, and `index`, and skip adding the prefix.
+これら、value, key, index で定義された Identifier を収集し、prefix の付与をスキップしていきます。
 
-## Implementation of codegen
+## codegen の実装
 
-Although the order is a bit out of order, let's implement codegen first because there is not much to talk about.
-There are only two things to do: handling `NodeTypes.FOR` and codegen for function expressions (which turned out to be the first appearance).
+少し順番が前後してしまいますが、codegen の方は大した話がないので先に実装を済ませてしまいます。  
+やることはたった二つ。`NodeTypes.FOR` のハンドリングと関数式の codegen です。(なんだかんだ関数式は初登場でした)
 
 ```ts
 switch (node.type) {
@@ -373,15 +377,15 @@ function genFunctionExpression(
 }
 ```
 
-There is nothing particularly difficult. That's the end of it.
+特に難しいところはないかと思います。これでおしまいです。
 
-## Implementation of transformer
+## transformer の実装
 
-### Preparation
+### 下準備
 
-Before implementing the transformer, there are also some preparations.
+transformer の実装をしていきますが、ここでもまたいくつか下準備です。
 
-As we did with `v-on`, in the case of `v-for`, the timing to execute `processExpression` is a bit special (we need to collect local variables), so we skip it in `transformExpression`.
+v-on の時にもやりましたが、v-for の場合には processExpression を実行するタイミングが少し特殊 (ローカル変数を収集しないといけない) なので、transformExpression の方ではスキップしてあげます。
 
 ```ts
 export const transformExpression: NodeTransform = (node, ctx) => {
@@ -403,21 +407,21 @@ export const transformExpression: NodeTransform = (node, ctx) => {
 }
 ```
 
-### Collecting Identifiers
+### Identifier の収集
 
-Now, let's think about how to collect identifiers before we move on to the main implementation.
+さて、ここからはメインの実装をしていくわけですが、先にどのように identifier を収集していくかを考えていきましょう。
 
-This time, we need to consider not only simple identifiers like `fruit`, but also destructuring assignments like `{ id, name, color }`.
-For this purpose, it seems that we need to use TreeWalker as usual.
+今回は `fruit` のようなシンプルなものだけではなく、`{ id, name, color }` のような分割代入も考慮する必要があります。  
+ついては、例の如く TreeWalker を使用する必要があるようです。
 
-Currently, in the `processExpression` function, the implementation is to search for identifiers and add `_ctx` to them. However, this time we only need to collect identifiers without adding anything. Let's achieve this.
+現在 processExpression では identifier を探索し、 `_ctx` を付与するような実装がされていますが、今回は付与せずに収集だけするような実装が必要そうです。これを実現していきます。
 
-First, let's prepare a place to store the collected identifiers. Since it would be convenient for codegen and other purposes if each Node has them, let's add a property to the AST that can hold multiple identifiers on each Node.
+まず、収集したものを溜めておくための場所を用意します。これは各 Node が持っておいた方が codegen などの時に便利なので、その Node 上に存在する identifier (複数) を持っておけるようなプロパティを AST に追加してしまいましょう。
 
-The targets are `CompoundExpressionNode` and `SimpleExpressionNode`.
+対象は `CompoundExpressionNode` と `SimpleExpressionNode` です。
 
-Simple identifiers like `fruit` will be added to `SimpleExpressionNode`,
-and destructuring assignments like `{ id, name, color }` will be added to `CompoundExpressionNode`. (In terms of visualization, it will be a compound expression like `["{", simpleExpr("id"), ",", simpleExpr("name"), ",", simpleExpr("color"), "}"]`)
+`fruit` のようなシンプルなものは `SimpleExpressionNode` に、  
+`{ id, name, color }` のような分割代入は `CompoundExpressionNode` になります。(イメージで言うと、`["{", simpleExpr("id"), ",", simpleExpr("name"), ",", simpleExpr("color"), "}"]` のような compound expr になる)
 
 ```ts
 export interface SimpleExpressionNode extends Node {
@@ -440,9 +444,9 @@ export interface CompoundExpressionNode extends Node {
 }
 ```
 
-In the `processExpression` function, let's implement the logic to collect identifiers here and skip adding prefixes by adding the collected identifiers to the transformer's context.
+processExpression の方で、ここに identifier を収集していくような実装をし、収集した identifier を transformer の context に追加することによって prefix の付与をスキップしていきます。
 
-Currently, the functions for adding/removing identifiers are configured to receive a single identifier as a string, so let's change it to a form that assumes `{ identifier: string[] }`.
+今、そこに identifier を追加/削除するための関数は、単一の識別子を string で受け取るような構成になってしまっているため、`{ identifier: string [] }` を想定した形に変更してあげます。
 
 ```ts
 export interface TransformContext extends Required<TransformOptions> {
@@ -488,11 +492,11 @@ const context: TransformContext = {
 }
 ```
 
-Now, let's implement the logic to collect identifiers in the `processExpression` function.
+それでは、processExpression の方で identifier を収集する実装をやっていきます。
 
-In the `processExpression` function, define an option called `asParams`, and if it is set to true, implement the logic to skip adding prefixes and collect identifiers in `node.identifiers`.
+processExpression の方で `asParams` というようなオプションを定義して、こちらが true になっている場合には prefix の付与をスキップして node.identifiers に identifier を収集するような実装をしていきます。
 
-`asParams` is intended to refer to the arguments (local variables) defined in the callback function of `renderList`.
+asParams と言うのは、renderList の第二引数のコールバック関数に定義された引数(ローカル変数) のことを想定しているものです。
 
 ```ts
 export function processExpression(
@@ -516,17 +520,20 @@ export function processExpression(
 }
 ```
 
-This is the end for simple identifiers. The problem lies in other cases.
+simpleIdentifier の場合はこれでおしまいです。問題はそれ以外です。
 
-For this, we will use `walkIdentifiers` implemented in `babelUtils`.
+こちらは babelUtils に実装した `walkIdentifiers` を利用していきます。
 
-Since we assume local variables defined as function arguments, we will convert them to "function arguments" in this function, and in `walkIdentifier`, we will search for them as Function params.
+関数の引数として定義されたローカル変数を想定するので、こちらの方でも 「関数の引数」のように変換し、walkIdentifier の方でも Function の param として探索するようにします。
 
 ```ts
-// Convert asParams like function arguments
+// asParams の場合は、関数の引数のように変換する
 const source = `(${rawExp})${asParams ? `=>{}` : ``}`
+```
 
-// walkIdentifiers is slightly more complex.
+walkIdentifiers の方が多少複雑です。
+
+```ts
 export function walkIdentifiers(
   root: Node,
   onIdentifier: (node: Identifier) => void,
@@ -546,12 +553,12 @@ export function walkIdentifiers(
           onIdentifier(node);
         }
         
-      } else if (isFunctionType(node)) {
-        // Explained later (collecting identifiers in knownIds within this function)
-        walkFunctionParams(node, (id) =>
-          markScopeIdentifier(node, id, knownIds)
-        );
-      }
+      } else if (isFunctionType(node)) { // [!code ++]
+        // 後述 (この関数の中で knownIds に identifier を収集している)
+        walkFunctionParams(node, (id) => // [!code ++]
+          markScopeIdentifier(node, id, knownIds)// [!code ++]
+        ); // [!code ++]
+      } // [!code ++]
     },
   })
 }
@@ -561,11 +568,11 @@ export const isFunctionType = (node: Node): node is Function => {
 }
 ```
 
-What we are doing here is simply walking the arguments if node is a function and collecting identifiers into `identifiers`.
+やっていることとしては、 node が関数だった場合には、その引数を walk し、identifiers に identifier を収集しているだけです。
 
-In the caller of `walkIdentifiers`, we define `knownIds` and pass it to `walkIdentifiers` along with `knownIds` to collect identifiers.
+`walkIdentifiers` を呼び出す側では、`knownIds` を定義し、walkIdentifiers にこの `knownIds` を渡してあげ、収集させます。
 
-After collecting in `walkIdentifiers`, finally, we generate identifiers based on `knownIds` when generating CompoundExpression.
+`walkIdentifiers` で収集した後で、最後、CompoundExpression を生成するタイミングで `knownIds` を元に identifiers を生成します。
 
 ```ts
 const knownIds: Record<string, number> = Object.create(ctx.identifiers)
@@ -576,7 +583,7 @@ walkIdentifiers(
     node.name = rewriteIdentifier(node.name)
     ids.push(node as QualifiedId)
   },
-  knownIds, // pass
+  knownIds, // 渡す
   parentStack,
 )
 
@@ -584,11 +591,11 @@ walkIdentifiers(
 // .
 // .
 
-ret.identifiers = Object.keys(knownIds) // generate identifiers based on knownIds
+ret.identifiers = Object.keys(knownIds) //　knownIds を元に identifiers を生成
 return ret
 ```
 
-Although the file is a bit out of order, `walkFunctionParams` and `markScopeIdentifier` simply walk through the parameters and add `Node.name` to `knownIds`.
+少しファイルが前後しますが、walkFunctionParams, markScopeIdentifier は何をやっているかというと、これは単純で、 param の walk と Node.name を knownIds に追加しているだけです。
 
 ```ts
 export function walkFunctionParams(
@@ -620,31 +627,31 @@ function markScopeIdentifier(
 }
 ```
 
-With this, we should be able to collect identifiers. Let's implement `transformFor` using this and complete the v-for directive!
+これで identifier の収集ができるようになったはずです。 これを使って transformFor を実装し、v-for ディレクティブを完成させましょう！
 
 ### transformFor
 
-Now that we have overcome the hurdle, let's implement the transformer using what we have as usual.
-Just a little more, let's do our best!
+さて、山は超えたのであとはいつも通り今あるものを使って transformer を実装していきます。
+あと少し、頑張りましょう！
 
-Like v-if, this also involves the structure, so let's implement it using `createStructuralDirectiveTransform`.
+こちらも v-if と同様、構造に関与するものなので createStructuralDirectiveTransform で実装していきます。
 
-I think it would be easier to understand if I write an explanation with code, so I will provide the code with explanations below. However, please try to implement it yourself by reading the source code before looking at this!
+おそらくこちらはコードベースで説明を書いて行った方がわかりやすいと思うので解説込みのコードを以下に記載しますが、ぜひこちらを見る前にソースコードを読んで自力で実装してみてください！
 
 ```ts
-// This is the implementation of the main structure, similar to v-if.
-// It executes processFor at the appropriate place and generates codegenNode at the appropriate place.
-// processFor is the most complex implementation.
+// こちらは v-if の時と同様、大枠の実装になります。
+// しかるべきところで processFor を実行し、しかるべきところで codegenNode を生成します。
+// processFor が一番複雑な実装になります。
 export const transformFor = createStructuralDirectiveTransform(
   'for',
   (node, dir, context) => {
     return processFor(node, dir, context, forNode => {
-      // As expected, generate code to call renderList.
+      // 想定通り、renderList を呼び出すコードを生成します。
       const renderExp = createCallExpression(context.helper(RENDER_LIST), [
         forNode.source,
       ]) as ForRenderListExpression
 
-      // Generate codegenNode for the Fragment that serves as the container for v-for.
+      // v-for のコンテナとなる Fragment の codegenNode を生成
       forNode.codegenNode = createVNodeCall(
         context,
         context.helper(FRAGMENT),
@@ -652,7 +659,7 @@ export const transformFor = createStructuralDirectiveTransform(
         renderExp,
       ) as ForCodegenNode
 
-      // codegen process (executed after parse and identifier collection in processFor)
+      // codegen の process (processFor 内で、parse, identifiers の収集後に実行されます)
       return () => {
         const { children } = forNode
         const childBlock = (children[0] as ElementNode).codegenNode as VNodeCall
@@ -675,8 +682,8 @@ export function processFor(
   context: TransformContext,
   processCodegen?: (forNode: ForNode) => (() => void) | undefined,
 ) {
-  // Parse the expression of v-for.
-  // At the parseResult stage, identifiers of each Node have already been collected.
+  // v-for の式を解析します。
+  // parseResult の段階ですでに各 Node の identifiers は収集されています。
   const parseResult = parseForExpression(
     dir.exp as SimpleExpressionNode,
     context,
@@ -696,17 +703,17 @@ export function processFor(
     children: [node],
   }
 
-  // Replace the Node with forNode.
+  // Node を forNode に置き換える
   context.replaceNode(forNode)
 
   if (!context.isBrowser) {
-    // Add the collected identifiers to the context.
+    // 収集された identifiers を context に追加して、
     value && addIdentifiers(value)
     key && addIdentifiers(key)
     index && addIdentifiers(index)
   }
 
-  // Generate code (this allows skipping the addition of the prefix to local variables)
+  // code を生成します。 (これにより、 ローカル変数の prefix の付与をスキップできる)
   const onExit = processCodegen && processCodegen(forNode)
 
   return () => {
@@ -718,7 +725,7 @@ export function processFor(
   }
 }
 
-// Parse the expression given to v-for using regular expressions.
+// 正規表現を活用して v-for に与えられた式を解析します。
 const forAliasRE = /([\s\S]*?)\s+(?:in|of)\s+([\s\S]*)/
 const forIteratorRE = /,([^,\}\]]*)(?:,([^,\}\]]*))?$/
 const stripParensRE = /^\(|\)$/g
@@ -771,7 +778,7 @@ export function parseForExpression(
       keyOffset = exp.indexOf(keyContent, trimmedOffset + valueContent.length)
       result.key = createAliasExpression(loc, keyContent, keyOffset)
       if (!context.isBrowser) {
-        // If not in browser mode, set asParams to true and collect identifiers of key.
+        // ブラウザモードでない場合、asParams を true にし、key の identifiers を収集します。
         result.key = processExpression(result.key, context, true)
       }
     }
@@ -790,7 +797,7 @@ export function parseForExpression(
           ),
         )
         if (!context.isBrowser) {
-          // If not in browser mode, set asParams to true and collect identifiers of index.
+          // ブラウザモードでない場合、asParams を true にし、index の identifiers を収集します。
           result.index = processExpression(result.index, context, true)
         }
       }
@@ -800,7 +807,7 @@ export function parseForExpression(
   if (valueContent) {
     result.value = createAliasExpression(loc, valueContent, trimmedOffset)
     if (!context.isBrowser) {
-      // If not in browser mode, set asParams to true and collect identifiers of value.
+      // ブラウザモードでない場合、asParams を true にし、value の identifiers を収集します。
       result.value = processExpression(result.value, context, true)
     }
   }
@@ -840,12 +847,12 @@ function createParamsList(
 }
 ```
 
-Now, the remaining part is the implementation of renderList that is actually included in the compiled code, and the implementation of registering the transformer. If we can implement these, v-for should work!
+さて、残りは実際にコンパイル後のコードに含まれる renderList の実装であったり、transformer の登録を実装できれば v-for が動くようになるはずです！
 
-Let's try running it!
+実際に動かしてみましょう！
 
 ![v_for](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/v_for.png)
 
-It seems to be going well.
+順調そうです。
 
-Source code up to this point: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/050_v_for)
+ここまでのソースコード: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/050_v_for)

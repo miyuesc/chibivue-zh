@@ -1,39 +1,41 @@
-# Take a break
+# ちょっと一息
 
-## Minimal Example section is over!
+## Minimal Example 部門はここまで！
 
-At the beginning, I mentioned that this book is divided into several sections, and the first section, "Minimal Example," is now complete. Well done!  
-The reason why I specifically use the term "section" is because there are two reasons.  
-First, from here on, I aim to create a configuration where each section has as little dependency as possible, so that each section can deepen their understanding in their respective areas of interest (sections).  
-If you are interested in Virtual DOM and patch rendering, you can proceed to the Basic Virtual DOM section. If you want to extend components further, you can go to the Basic Component section. If you are interested in richer expressions (directives, etc.) with templates, you can go to the Basic Template Compiler section. If you are interested in script setup and compiler macros, you can proceed to the Basic SFC Compiler section. (Of course, you can do all of them if you want!)  
-And above all, since this "Minimal Example" is also a respectable section, if you just want to have a general understanding without going too deep, it is sufficient to stop here.  
-(Regarding the Web Application Essentials section, there are some dependencies on the basic implementation of Vue, so the implementations of each section are mixed to some extent.)
+冒頭で、この本はいくつかの部門に分かれるという話をしたのですが、それの一番最初の部門である「Minimal Example 部門」はここまでで終了です。お疲れ様でした。  
+なぜ、わざわざ「部門」という呼び方にしているかというと、理由は２つあります。  
+まず一つは、ここからはそれぞれの部門でなるべく依存関係を持たないような構成にすることで、それぞれが興味のある範囲(部門)での理解を深めることができるということを目指しているからです。  
+Virtual DOM やパッチレンダリング周りに興味がある人は Basic Virtual DOM 部門に進めばいいですし、コンポーネントをもっと拡張したければ Basic Component 部門、  
+テンプレートでもっと豊かな表現(ディレクティブなど)に興味があれば Basic Template Compiler 部門、script setup やコンパイラマクロに興味があれば Basic SFC Compiler 部門に進めば良いです。(勿論全部やってもいいですよ!!)  
+そして何よりこのこの「Minimal Example 部門」もひとつの立派な部門なわけですから、「そんなに深くは知らなくてもいいけど、全体的にサラッとやりたい！」という方はここまでで十分なのです。  
+(Web Application Essentials 部門に関しては、ある程度 Vue の Basic な実装に依存にする部分があるので、各部門の実装が少し混ざってしまっています。)
 
-## What have we achieved so far?
+## ここまでで何ができるようになった？
 
-Finally, let's reflect on what we have done and what we have achieved in the Minimal Example section.
+最後に、少し Minimal Example 部門でやったこととできるようになったことを振り返ってみましょう。
 
-## We now know what we are looking at and where it belongs
+## いつもみているものが何処の何なのか、分かるようになった
 
-First, through the initial developer interface called createApp, we understood how the (web app) developer and the world of Vue are connected.  
-Specifically, starting from the refactoring we did at the beginning, you should now understand the foundation of Vue's directory structure, its dependencies, and where the developers are working on.  
-Let's compare the current directory and the directory of vuejs/core.
+まず、createApp という最初の開発者インタフェースを通して、(Web アプリの)開発者と Vue の世界がどのようなふうに繋がっているのかを理解しました。  
+具体的には、最初にやったリファクタを起点に、Vue のディレクトリ構造の基盤とそれぞれの依存関係、そして開発者が触っている部分はどこのなんなのかというのが分かるようになっているはずです。
+ここらで今現状でのディレクトリと、vuejs/core のディレクトリを見比べてみましょう。
 
 chibivue
 ![minimum_example_artifacts](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/minimum_example_artifacts.png)
 
-\*The original code is too large to fit in a screenshot, so it is omitted.
+※ 本家のコードはデカくてスクショに収まりきらないので割愛
 
 https://github.com/vuejs/core
 
-Even though it's small, you should now be able to read and understand the roles and contents of each file to some extent. I hope you will also challenge yourself to read the source code of the parts we haven't covered this time. (You should be able to read it little by little!)
+小さいなりに、それぞれのファイルの役割やその中身もそこそこ読めるようになっているのではないでしょうか。
+ぜひ、今回触れていない部分のソースコードのコードリーディングにも挑戦してみてほしいです。(ぼちぼち読めるはずです！　)
 
-## We now know how declarative UI is achieved
+## 宣言的 UI の実現方法が分かった
 
-Through the implementation of the h function, we understood how declarative UI is achieved.
+h 関数の実装を通して、宣言的 UI はどうやって実現されているかということについて理解しました。
 
 ```ts
-// Internally, it generates an object like {tag, props, children} and performs DOM operations based on it
+// 内部的に {tag, props, children} のようなオブジェクトを生成し、それを元にDOM操作をしている
 h('div', { id: 'my-app' }, [
   h('p', {}, ['Hello!']),
   h(
@@ -48,11 +50,11 @@ h('div', { id: 'my-app' }, [
 ])
 ```
 
-This is where something like Virtual DOM first appears.
+ここで初めて Virtual DOM のようなものが登場しました。
 
-## We now know what the Reactivity System is and how to dynamically update the screen
+## Reactivity System とは何か、どうやって画面を動的に更新していくかということが分かった
 
-We understood the implementation of Vue's unique feature, the Reactivity System, how it works, and what it actually is.
+Vue の醍醐味である、Reactivity System がどのような実装で成り立っているのか、そもそも Reactivity System とはなんのことなのか、ということについて理解しました
 
 ```ts
 const targetMap = new WeakMap<any, KeyToDepMap>()
@@ -94,12 +96,12 @@ const component = {
 }
 ```
 
-## We now know what Virtual DOM is, why it is beneficial, and how to implement it
+## Virtual DOM とはなんなのか、何が嬉しいのか、どうやって実装するのかが分かった
 
-As an improvement to rendering using the h function, we understood the efficient rendering method using Virtual DOM through comparison.
+h 関数を使ったレンダリングの改善として、 Virtual DOM の比較による効率的なレンダリングの方法について理解しました。
 
 ```ts
-// Interface for Virtual DOM
+// 仮想DOMのinterface
 export interface VNode<HostNode = any> {
   type: string | typeof Text | object
   props: VNodeProps | null
@@ -107,10 +109,10 @@ export interface VNode<HostNode = any> {
   el: HostNode | undefined
 }
 
-// First, the render function is called
+// まず、render関数が呼ばれる
 const render: RootRenderFunction = (rootComponent, container) => {
   const vnode = createVNode(rootComponent, {}, [])
-  // The first time, n1 is null. In this case, each process runs mount
+  // 初回は n1 が null. この場合は各自 process で mount が走る
   patch(null, vnode, container)
 }
 
@@ -127,12 +129,12 @@ const patch = (n1: VNode | null, n2: VNode, container: RendererElement) => {
   }
 }
 
-// From the second time onwards, the previous VNode and the current VNode are passed to the patch function to update the differences
+// 2回目以降はひとつ前のVNodeと現在のVNodeをpatch関数に渡すことで差分を更新する
 const nextVNode = component.render()
 patch(prevVNode, nextVNode)
 ```
 
-I understood how the structure of components and the interaction between components are achieved.
+## コンポーネントの構造とコンポーネント間でのやりとりをどう実現するのかが分かった。
 
 ```ts
 export interface ComponentInternalInstance {
@@ -190,9 +192,9 @@ const app = createApp({
 })
 ```
 
-I understood what the compiler is and how the template functionality is implemented.
+## コンパイラとは何か、テンプレートの機能はどう実現されているのかが分かった
 
-By understanding what the compiler is and implementing the template compiler, I gained an understanding of how to achieve a more raw HTML-like implementation and how to implement Vue-specific features such as Mustache syntax.
+コンパイラとはどのようなものかについて理解し、テンプレートのコンパイラを実装することで、より生の HTML に近く、かつマスタッシュ構文などの Vue 固有な機能についての実装を理解しました。
 
 ```ts
 const app = createApp({
@@ -244,9 +246,10 @@ const app = createApp({
 })
 ```
 
-I understood how to achieve the SFC compiler through the Vite plugin.
+## Vite プラグインを通して SFC コンパイラの実現方法について理解した。
 
-By implementing the template compiler and utilizing it through the Vite plugin, I gained an understanding of how to implement an original file format that combines script, template, and style into one file. I also learned about what can be done with Vite plugins, as well as transform and virtual modules.
+実装して template コンパイラを活用して、script, template, style を一つのファイルに記述するオリジナルのファイルフォーマットをどう実現するかについて理解しました。  
+vite プラグインでどういうことができるのか、transform や仮想モジュールについて学びました。
 
 ```vue
 <script>
@@ -302,44 +305,53 @@ export default {
 </style>
 ```
 
-## About the Future
+## これからについて
 
-From now on, in order to make it more practical, we will go into more detail in each part.  
-With that, the initial source code for each part after this will start from the state of the "Minimal Example" part. I will explain a little about what to do and how to proceed (policy) for each part.
+これからは、より実用的なものにしていくにあたって、それぞれのパートをより詳しくやっていきます。
+それに伴って、これ以降の各部門の最初のソースコードは「Minimal Example 部門の最後のソースコードの状態」からスタートします。  
+そして、これから各部門でやることと、進め方(方針)について少し説明します。
 
-### What to do
+## どういうことをやるのか
 
-From here, it will be divided into 5 parts + 1 appendix.
+この本の冒頭と重複する部分も多いですが、改めて。  
+ここからは 5 部門 + 付録 1 部門に分かれます。
 
-- Basic Virtual DOM Part
-  - Implementation of the scheduler
-  - Implementation of unsupported patches (mainly related to attributes)
-  - Support for Fragment
-- Basic Reactivity System Part
-  - ref API
-  - computed API
-  - watch API
-- Basic Component System Part
+- Basic Virtual DOM 部門
+  - スケジューラの実装
+  - 対応できていないパッチの実装 (主に属性周り)
+  - Fragment の対応
+- Basic Reactivity System 部門
+  - ref api
+  - computed api
+  - watch api
+- Basic Component System 部門
   - provide/inject
   - lifecycle hooks
-- Basic Template Compiler Part
+- Basic Template Compiler 部門
   - v-on
   - v-bind
   - v-for
   - v-model
-- Basic SFC Compiler Part
-  - Basics of SFC
+- Basic SFC Compiler 部門
+  - SFC の基本
   - script setup
   - compiler macro
-- Web Application Essentials Part (Appendix)
+- Web Application Essentials 部門 (付録)
 
-This part is an appendix. In this part, we will implement libraries that are frequently used together with Vue in web development. This part has some dependencies on other parts. Of course, it is also possible to start from this part and implement the necessary parts in other parts as you go along, but it may be a little confusing.
+  この部門は付録です。Web 開発において、頻繁に Vue と共に利用されるライブラリの実装をします。
+  この部門だけは、ある程度他の部門に依存する部分があります。
+  勿論、この部門からやり始めて他の部門でやる必要な実装については随時やっていく、という方針でも問題はないですが、多少わかりづらい可能性はあります。
 
-- store
-- route
+  - store
+  - route
 
-We will cover the above two, but feel free to implement other things that come to mind!
+  ここでは上記の 2 つを扱いますが、ぜひ他にも思いつくものがあれば実装してみましょう！
 
-### Policy
+## 方針について
 
-In the Minimal Example part, we explained the implementation steps in quite detail. By now, if you have implemented it, you should be able to read the source code of the original Vue. Therefore, from now on, the explanations will be kept to a rough policy, and you will implement the actual code while reading the original code or thinking on your own. (N-no, it's not that I'm getting lazy to write in detail or anything like that!) Well, it's fun to implement it as the book says, but once it starts to take shape, it's more fun to do it yourself and it leads to a deeper understanding. From here on, please consider this book as a kind of guideline, and the main content is in the original Vue source code!
+Minimal Example 部門ではかなり細かめに実装の手順について説明してきました。  
+ここまで実装してきた皆さんならば、もうかなり本家 Vue のソースコードを読めるようになっているはずです。  
+そこでこれ以降の部では、説明は大まかな方針までにとどめて、実際のコードは本家のコードを読みながら、もしくは自分で考えながら実装していこうと思います。  
+(け、決して、細かく書くのが面倒臭くなってきたとか、そういうことではないですからね！　)  
+まあ、本を読んでその通りに実装するのは最初のうちは楽しいですが、ある程度形になってきたら自分でやってみるほうが楽しいですし、より深い理解にもつながるかと思います。  
+ここから先はこの本はある種のガイドライン程度に捉えて貰って、本編は Vue 本家にあります！

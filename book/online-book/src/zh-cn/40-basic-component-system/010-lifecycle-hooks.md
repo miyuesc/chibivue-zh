@@ -1,31 +1,31 @@
-# Lifecycle Hooks (Basic Component System Start)
+# ライフサイクルフック (Basic Component System 部門スタート)
 
-## Let's Implement Lifecycle Hooks
+## ライフサイクルフックを実装しよう
 
-Implementing lifecycle hooks is very simple.
-You just need to register functions in ComponentInternalInstance and execute them at the specified timing during rendering.
-The API itself will be implemented in runtime-core/apiLifecycle.ts.
+ライフサイクルフックの実装はとても簡単です。  
+ComponentInternalInstance に関数を登録して、render 時に所定のタイミングで実行してあげるだけです。  
+API 自体は runtime-core/apiLifecycle.ts に実装していきます。
 
-One thing to note is that you need to consider scheduling for onMounted/onUnmounted/onUpdated.
-The registered functions should be executed after the mount, unmount, and update are completely finished.
+一点、注意するべきところがあるとすれば、onMounted/onUnmounted/onUpdated に関してはスケジューリングを考えなければならない点です。  
+登録された関数たちはマウントやアンマウント、アップデートが完全に終わったタイミングで実行したいわけです。
 
-Therefore, we will implement a new type of queue called "post" in the scheduler. This is something that will be flushed after the existing queue flush is finished.
-Image ↓
+そこで、スケジューラの方で`post`という種類のキューを新たに実装します。これは既存の queue の flush が終わった後に flush されるようなものです。  
+イメージ ↓
 
 ```ts
-const queue: SchedulerJob[] = [] // Existing implementation
-const pendingPostFlushCbs: SchedulerJob[] = [] // New queue to be created this time
+const queue: SchedulerJob[] = [] // 既存実装
+const pendingPostFlushCbs: SchedulerJob[] = [] // 今回新しく作る queue
 
 function queueFlush() {
   queue.forEach(job => job())
-  flushPostFlushCbs() // Flush after the queue flush
+  flushPostFlushCbs() // queue の flush の後で flush する
 }
 ```
 
-Also, with this, let's implement an API that enqueues into pendingPostFlushCbs.
-And let's use it to enqueue the effect in the renderer to pendingPostFlushCbs.
+また、これに伴って、pendingPostFlushCbs に enqueue するような API も実装しましょう。
+そして、それを使って renderer で作用を pendingPostFlushCbs に enqueue しましょう。
 
-Lifecycle hooks to be supported this time:
+今回対応するライフサイクル
 
 - onMounted
 - onUpdated
@@ -34,7 +34,7 @@ Lifecycle hooks to be supported this time:
 - onBeforeUpdate
 - onBeforeUnmount
 
-Let's implement it aiming for the following code to work!
+以下のようなコードが動くことを目指して実装してみましょう！
 
 ```ts
 import {
@@ -101,5 +101,5 @@ const app = createApp({
 app.mount('#app')
 ```
 
-Source code so far:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/010_lifecycle_hooks)

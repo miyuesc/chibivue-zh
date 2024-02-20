@@ -1,8 +1,8 @@
-# Implementing Fragment
+# Fragment を実装する
 
-## Issues with the current implementation
+## 今の実装の問題点
 
-Let's try running the following code in a playground:
+以下のようなコードを playground で実行してみましょう。
 
 ```ts
 import { createApp, defineComponent } from 'chibivue'
@@ -18,13 +18,13 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-You may encounter an error like this:
+以下のようなエラーが出てしまうかと思います。
 
 ![fragment_error.png](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/fragment_error.png)
 
-Looking at the error message, it seems to be related to the Function constructor.
+エラー文をみてみると、 Function コンストラクタで起きているようです。
 
-In other words, the code generation seems to be successful up to a certain point, so let's see what code is actually generated.
+つまり、codegen までは一応成功しているようなので、実際にどのようなコードが生成されたのかみてみましょう。
 
 ```ts
 return function render(_ctx) {
@@ -36,15 +36,14 @@ return function render(_ctx) {
 }
 ```
 
-The code after the `return` statement is incorrect. The current code generation implementation does not handle cases where the root is an array (i.e., not a single node).
+return の先がおかしなことになってしまっていますね。今の codegen の実装だと、ルートが配列だった場合(単一のノードではない場合)を考慮できていません。  
+今回はこれを修正していきます。
 
-We will fix this issue.
+## どういうコードを生成すればいいのか
 
-## What code should be generated?
+修正していくとはいえ、どういうコードを生成できるようになれば良いでしょうか。
 
-Even though we are making modifications, what kind of code should be generated?
-
-In conclusion, the code should look like this:
+結論から言うと以下のようなコードになります。
 
 ```ts
 return function render(_ctx) {
@@ -64,27 +63,31 @@ return function render(_ctx) {
 }
 ```
 
-This `Fragment` is a symbol defined in Vue.
+この `Fragment` というものは Vue で定義されている symbol です。  
+つまり、Fragment は FragmentNode のような AST として表現されるものではなく、単に ElementNode の tag として表現されます。
 
-In other words, Fragment is not represented as an AST like FragmentNode, but simply as a tag of ElementNode.
+そして、tag が Fragment あった場合の処理を renderer に実装します。  
+Text と似たよう感じです。
 
-We will implement the processing for Fragment in the renderer, similar to Text.
+## 実装していく
 
-## Implementation
+fragment の symbol は runtime-core/vnode.ts の方に実装されます。
 
-The Fragment symbol will be implemented in runtime-core/vnode.ts.
-
-Let's add it as a new type in VNodeTypes.
+VNodeTypes の新たな種類として追加しましょう。
 
 ```ts
-export type VNodeTypes = Component | typeof Text | typeof Fragment | string
+export type VNodeTypes =
+  | Component; // `object` になってると思うので、ついでに直しておきました
+  | typeof Text
+  | typeof Fragment  // これを追加
+  | string
 
-export const Fragment = Symbol()
+export const Fragment = Symbol(); // これを追加
 ```
 
-Implement the renderer.
+renderer を実装します。
 
-Add a branch for fragment in the patch function.
+patch 関数に fragment の時の分岐を追加します。
 
 ```ts
 if (type === Text) {
@@ -92,7 +95,7 @@ if (type === Text) {
 } else if (shapeFlag & ShapeFlags.ELEMENT) {
   processElement(n1, n2, container, anchor, parentComponent)
 } else if (type === Fragment) {
-  // Here
+  // ここ
   processFragment(n1, n2, container, anchor, parentComponent)
 } else if (shapeFlag & ShapeFlags.COMPONENT) {
   processComponent(n1, n2, container, anchor, parentComponent)
@@ -101,26 +104,26 @@ if (type === Text) {
 }
 ```
 
-Note that inserting or removing elements should generally be implemented with anchor as a marker.
+注意点としては、要素の insert や remove は基本的に anchor を目印に実装して行く必要があることです。
 
-As the name suggests, an anchor indicates the start and end positions of a fragment.
+anchor というのは名の通り、フラグメントの開始と終了の位置を示すものです。
 
-The starting element is represented by the existing `el` property in VNode, but currently there is no property to represent the end. Let's add it.
+始端の要素 は 従来から VNode に存在する `el` というプロパティが担いますが、現時点だと終端を表すプロパティが存在しないので追加します。
 
 ```ts
 export interface VNode<HostNode = any> {
   // .
   // .
   // .
-  anchor: HostNode | null // fragment anchor // Added
+  anchor: HostNode | null // fragment anchor // 追加
   // .
   // .
 }
 ```
 
-Set the anchor during mount.
+mount 時に anchor を設定します
 
-Pass the fragment's end as the anchor in mount/patch.
+そして、mount / patch に anchor として フラグメントの終端を渡してあげます。
 
 ```ts
 const processFragment = (
@@ -148,7 +151,7 @@ const processFragment = (
 }
 ```
 
-Be careful when the elements of the fragment change during updates.
+更新時、fragment の要素が変動する際も注意します。
 
 ```ts
 const move = (
@@ -159,13 +162,14 @@ const move = (
   const { type, children, el, shapeFlag } = vnode
 
   // .
+  // .
 
   if (type === Fragment) {
     hostInsert(el!, container, anchor)
     for (let i = 0; i < (children as VNode[]).length; i++) {
       move((children as VNode[])[i], container, anchor)
     }
-    hostInsert(vnode.anchor!, container, anchor) // Insert the anchor
+    hostInsert(vnode.anchor!, container, anchor) // アンカーを挿入
     return
   }
   // .
@@ -174,7 +178,7 @@ const move = (
 }
 ```
 
-During unmount, also rely on the anchor to remove elements.
+unmount 時も anchor を頼りに要素を削除していきます。
 
 ```ts
 const remove = (vnode: VNode) => {
@@ -191,7 +195,7 @@ const remove = (vnode: VNode) => {
 const removeFragment = (cur: RendererNode, end: RendererNode) => {
   let next
   while (cur !== end) {
-    next = hostNextSibling(cur)! // ※ Add this to nodeOps!
+    next = hostNextSibling(cur)! // ※ nodeOps に追加しましょう！
     hostRemove(cur)
     cur = next
   }
@@ -199,9 +203,9 @@ const removeFragment = (cur: RendererNode, end: RendererNode) => {
 }
 ```
 
-## Testing
+## 動作を見てみる
 
-The code we wrote earlier should work correctly.
+先ほどのコードはきちんと動くようになっているはずです。
 
 ```ts
 import { Fragment, createApp, defineComponent, h, ref } from 'chibivue'
@@ -217,9 +221,9 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-Currently, we cannot use directives like v-for, so we cannot write a description that uses a fragment in the template and changes the number of elements.
+現状だと、v-for ディレクティブなどが使えないことから、template で fragment を使いつつ要素の個数を変化させるような記述ができないので、
 
-Let's simulate the behavior by writing the compiled code and see how it works.
+擬似的に コンパイル後のコードを書いて動作を見てみましょう。
 
 ```ts
 import { Fragment, createApp, defineComponent, h, ref } from 'chibivue'
@@ -249,6 +253,6 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-It seems to be working correctly!
+ちゃんと動作しているようです！
 
-Source code up to this point: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/030_fragment)
+ここまでのソースコード: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/030_fragment)

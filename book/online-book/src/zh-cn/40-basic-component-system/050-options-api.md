@@ -1,10 +1,10 @@
-# Supporting the Options API
+# Options APIに対応する
 
 ## Options API
 
-So far, we have been able to implement a lot using the Composition API, but let's also support the Options API.
+ここまででかなりのことを Composition API で実装することができるようになりましたが、Options API も対応してみましょう。
 
-In this book, we support the following in the Options API:
+本書では以下を対応しています。
 
 - props
 - data
@@ -29,7 +29,7 @@ In this book, we support the following in the Options API:
 - $forceUpdate
 - $nextTick
 
-As an implementation approach, let's prepare a function called "applyOptions" in "componentOptions.ts" and execute it towards the end of "setupComponent".
+実装方針としては、componentOptions.ts に applyOptions という関数を用意し、setupComponent の最後の方で実行します。
 
 ```ts
 export const setupComponent = (instance: ComponentInternalInstance) => {
@@ -40,7 +40,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
   if (render) {
     instance.render = render as InternalRenderFunction
   }
-  // ↑ This is the existing implementation
+  // ↑ ここまでは既存実装
 
   setCurrentInstance(instance)
   applyOptions(instance)
@@ -48,7 +48,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
 }
 ```
 
-In the Options API, the developer interface frequently deals with "this".
+Options API では this を頻繁に扱うような開発者インタフェースになっています。
 
 ```ts
 const App = defineComponent({
@@ -58,15 +58,15 @@ const App = defineComponent({
 
   methods: {
     greet() {
-      console.log(this.message) // Like this
+      console.log(this.message) // こういうやつ
     },
   },
 })
 ```
 
-Internally, "this" refers to the component's proxy in the Options API, and when applying options, this proxy is bound.
+この this は内部的にはコンポーネントの proxy を指すようになっていて、オプションを apply する際にこの proxy を bind しています。
 
-Implementation example ↓
+実装イメージ ↓
 
 ```ts
 export function applyOptions(instance: ComponentInternalInstance) {
@@ -87,23 +87,23 @@ export function applyOptions(instance: ComponentInternalInstance) {
 }
 ```
 
-Basically, if you implement them one by one using this principle, it shouldn't be difficult.
+基本的にはこの原理を使って一つずつ実装していけば難しくないはずです。
 
-If you want to make "data" reactive, call the "reactive" function here, and if you want to compute, call the "computed" function here. (The same goes for "provide/inject")
+data をリアクティブにしたければ reactive 関数をここで呼び出しますし、computed したければ computed 関数をここで呼び出します。 (provide/inject も同様)
 
-Since the instance is set by "setCurrentInstance" before "applyOptions" is executed, you can call the APIs (Composition API) you have been using so far in the same way.
+applyOptions が実行される前には setCurrentInstance によってインスタンスがセットされているので、いつもと同じようにこれまで作ってきた api(CompositionAPI)を呼んであげれば OK です。
 
-Regarding properties starting with "$", they are controlled by the implementation of "componentPublicInstance". The getter in "PublicInstanceProxyHandlers" controls them.
+`$`から始まるプロパティについては componentPublicInstance の方の実装で、PublicInstanceProxyHandlers の getter で制御しています。
 
-## Typing Options API
+## Options API の型付
 
-Functionally, it is fine to implement it as described above, but typing the Options API is a bit complex.
+機能的には上記のように実装していけばいいのですが、Options API は型付が少々複雑です。
 
-In this book, we support basic typing for the Options API.
+一応、本書では OptionsAPI に関しても基本的な型付はサポートしています。
 
-The difficult point is that the type of "this" changes depending on the user's definition of each option. For example, if you define a property called "count" of type "number" in the "data" option, you would want "this" in "computed" or "method" to infer "count: number".
+難しいポイントとしては、各オプションのユーザーの定義によって this の型が変動する点です。data オプションで number 型の count というプロパティを定義した場合には computed や method での this には `count: number` が推論されたいわけです。
 
-Of course, this applies not only to "data" but also to those defined in "computed" or "methods".
+もちろん、data だけではなく computed や methods に定義されたものについても同様です。
 
 ```ts
 const App = defineComponent({
@@ -126,13 +126,14 @@ const App = defineComponent({
 })
 ```
 
-To achieve this, you need to implement a somewhat complex type puzzle (relay with many generics).
+これを実現するには少々複雑な型パズルを実装する必要があります。(たくさんジェネリクスでバケツリレーします。)
 
-Starting with typing for "defineComponent", we implement several types to relay to "ComponentOptions" and "ComponentPublicInstance".
+defineComponent に対する型付を起点に、ComponentOptions, ComponentPublicInstance にリレーするためにいくつかの型を実装します。
 
-Here, let's focus on "data" and "methods" for explanation.
+ここでは一旦、data オプションと methods に絞って説明します。
 
-First, the usual "ComponentOptions" type. We extend it with generics to accept the types of "data" and "methods" as parameters, "D" and "M".
+まずはいつもの ComponentOptions という型です。
+こちらもジェネリックに拡張し、data と methods の型を受け取れるように D と M というパラメータを取るようにします。
 
 ```ts
 export type ComponentOptions<
@@ -148,8 +149,8 @@ interface MethodOptions {
 }
 ```
 
-So far, it shouldn't be too difficult. This is the type that can be applied to the arguments of "defineComponent".  
-Of course, in "defineComponent" as well, we accept "D" and "M" to relay the user-defined types. This allows us to relay the user-defined types.
+ここまでは特に難しくないかと思います。これが defineComponent の引数に当てられる型です。  
+もちろん、defineComponent の方でも D と M を受け取れるようにします。これによってユーザーが定義した型をリレーしていけるようになります。
 
 ```ts
 export function defineComponent<
@@ -158,21 +159,21 @@ export function defineComponent<
 >(options: ComponentOptions<D, M>) {}
 ```
 
-The problem is how to mix "D" with "this" when dealing with "this" in "methods" (how to make inference like "this.count" possible).
+問題は method で扱う this に対して D をどうやって mix するか(どうやって this.count のような推論を可能にするか)です。
 
-First, "D" and "M" are merged into "ComponentPublicInstance" (merged into the proxy). This can be understood as follows (extend with generics).
+まず、手始めに D や M は ComponentPublicInstance にマージされる(proxy にマージされる)ので以下のようになることがわかるかと思います。(ジェネリックに拡張します。)
 
 ```ts
 type ComponentPublicInstance<
   D = {},
   M extends MethodOptions = MethodOptions,
 > = {
-  /** Various types that public instance has */
+  /** public instance が持ついろんな型 */
 } & D &
   M
 ```
 
-Once we have this, we mix the instance type into "this" in "ComponentOptions".
+ここまでできたら、ComponentOptions の this にインスタンスの型を混ぜ込みます。
 
 ```ts
 type ComponentOptions<D = {}, M extends MethodOptions = MethodOptions> = {
@@ -181,11 +182,11 @@ type ComponentOptions<D = {}, M extends MethodOptions = MethodOptions> = {
 } & ThisType<ComponentPublicInstance<D, M>>
 ```
 
-By doing this, we can infer the properties defined in "data" and "method" from "this" in the options.
+こうしておくことで、option 中の this から data や method に定義したプロパティを推論することができます。
 
-In practice, we need to infer various types such as "props", "computed", and "inject", but the basic principle is the same.  
-At first glance, you may be overwhelmed by the many generics and type conversions (such as extracting only the "key" from "inject"), but if you calm down and return to the principle, you should be fine.  
-In the code of this book, inspired by the original Vue, we have abstracted it one step further with "CreateComponentPublicInstance" and implemented a type called "ComponentPublicInstanceConstructor", but don't worry too much about it. (If you're interested, you can read it too!)
+実際には props であったり、computed, inject など様々な型を推論する必要がありますが、基本原理はこれと同じです。  
+ぱっと見ジェネリクスがたくさんあったり、型の変換(inject から key だけを取り出したり)が混ざっているのでウッとなってしまうかもしれませんが落ち着いて原理に戻って実装すれば大丈夫なはずです。  
+本書のコードでは本家の Vue をインスパイアして、`CreateComponentPublicInstance`という抽象化を一段階挟んでいたり、`ComponentPublicInstanceConstructor`と言う型を実装していますが、あまり気にしないでください。(興味があればそこも読んでみてください！　)
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/070_options_api)

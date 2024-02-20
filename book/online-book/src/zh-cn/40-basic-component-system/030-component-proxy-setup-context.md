@@ -1,12 +1,12 @@
-# Proxy and setupContext of Components
+# コンポーネントの Proxy と setupContext
 
-## Proxy of Components
+## コンポーネントの Proxy
 
-One important concept that components have is called Proxy.  
-In simple terms, it is a Proxy that allows access to the data (public properties) of the component instance.
-The Proxy combines the results of setup (state, functions), data, props, and other accesses.
+コンポーネントが持つ重要な概念として Proxy というものがあります。  
+これは、簡単にいうと、コンポーネントのインスタンスが持つデータ(public なプロパティ)にアクセスするための Proxy で、
+この Proxy に setup の結果(ステートや関数)、data、props などのアクセスはまとめてしまいます。
 
-Let's consider the following code (including parts that are not implemented in chibivue, so please think of it as regular Vue):
+以下のようなコードを考えてみましょう。(chibivue で実装していない範囲のものも含みます。普段の Vue だと思ってください)
 
 ```vue
 <script>
@@ -48,30 +48,30 @@ export default defineComponent({
 </template>
 ```
 
-This code works correctly, but how is it bound to the template?
+このコードは正常に動作するわけですが、さて template へはどうやってバインドしているのでしょうか ?
 
-Let's consider another example.
+もう一つ例を挙げます。
 
 ```vue
 <script setup>
 const ChildRef = ref()
 
-// Access to methods and data of the component
+// コンポーネントが持つメソッドやデータにアクセスできる
 // ChildRef.value?.incrementData
 // ChildRef.value?.increment
 </script>
 
 <template>
-  <!-- Child is the component mentioned earlier -->
+  <!-- Childは先ほどのコンポーネント -->
   <Child :ref="ChildRef" />
 </template>
 ```
 
-In this case, you can access the component's information through ref.
+こちらも、ref を介してコンポーネントの情報にアクセスすることができます。
 
-To achieve this, the ComponentInternalInstance has a property called proxy, which holds the Proxy for data access.
+これをどうやって実現しているかというと、ComponentInternalInstance に proxy というプロパティをもち、ここにはデータアクセスのための Proxy を持っています。
 
-In other words, the template (render function) and ref refer to instance.proxy.
+つまり、template (render 関数)や ref は instance.proxy を参照しているということです。
 
 ```ts
 interface ComponentInternalInstance {
@@ -79,7 +79,7 @@ interface ComponentInternalInstance {
 }
 ```
 
-The implementation of this proxy is done using Proxy, and it is roughly as follows:
+この proxy の実装はもちろん Proxy で実装されていて、概ね、以下のようなイメージです。
 
 ```ts
 instance.proxy = instance.proxy = new Proxy(
@@ -91,19 +91,19 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
   get(instance: ComponentRenderContext, key: string) {
     const { setupState, ctx, props } = instance
 
-    // Check setupState -> props -> ctx in order based on the key and return the value if it exists
+    // key を元に setupState -> props -> ctx の順にチェックして存在していれば値を返す
   },
 }
 ```
 
-Let's implement this Proxy!
+実際にこの Proxy を実装してみましょう！
 
-Once implemented, let's modify the code to pass this proxy to the render function and ref.
+実装できたら render 関数や ref にはこの proxy を渡すように書き換えてみましょう。
 
-Source code so far:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/030_component_proxy)
 
-※ By the way, I have also implemented the implementation of defineComponent and related type checking (this allows us to infer the type of proxy data).
+※ ついでに defineComponent の実装とそれに関連する型付も実装しています。 (そうすると proxy のデータの型を推論できるようになります。)
 
 ![infer_component_types](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/infer_component_types.png)
 
@@ -111,9 +111,9 @@ Source code so far:
 
 https://ja.vuejs.org/api/composition-api-setup.html#setup-context
 
-Vue has a concept called setupContext. This is the context exposed in the setup function, which includes emit and expose.
+Vue には setupContext という概念があります。これは setup 内に公開される context で、emit や expose などが挙げられます。
 
-At the moment, emit is working, but it is implemented somewhat roughly.
+現時点では emit は使えるようにはなっているものの、少々雑に実装してしまっています。
 
 ```ts
 const setupResult = component.setup(instance.props, {
@@ -121,14 +121,14 @@ const setupResult = component.setup(instance.props, {
 })
 ```
 
-Let's define the SetupContext interface properly and represent it as an object that the instance holds.
+SetupContext というインタフェースをきちんと定義して、インスタンスが持つオブジェクトとして表現しましょう。
 
 ```ts
 export interface ComponentInternalInstance {
   // .
   // .
   // .
-  setupContext: SetupContext | null // Added
+  setupContext: SetupContext | null // 追加
 }
 
 export type SetupContext = {
@@ -136,15 +136,15 @@ export type SetupContext = {
 }
 ```
 
-Then, when creating an instance, generate the setupContext and pass this object as the second argument when executing the setup function.
+そして、インスタンスを生成する際に setupContext を生成し、setup 関数を実行する際の第二引数にこのオブジェクトを渡すようにしましょう。
 
 ## expose
 
-Once you've reached this point, let's try implementing SetupContext other than emit.  
-As an example this time, let's implement expose.
+ここまでできたら emit 以外の SetupContext も実装してみます。  
+今回は例として、expose を実装してみます。
 
-expose is a function that allows you to explicitly define public properties.  
-Let's aim for a developer interface like the following:
+expose は、パブリックなプロパティを明示できる関数です。  
+以下のような開発者インタフェースを目指しましょう。
 
 ```ts
 const Child = defineComponent({
@@ -190,28 +190,28 @@ const app = createApp({
 })
 ```
 
-For components that do not use expose, everything is still public by default.
+expose を使用しないコンポーネントでは今まで通り、デフォルトで全てが public です。
 
-As a direction, let's have an object called `exposed` inside the instance, and if a value is set here, we will pass this object to ref for templateRef.
+方向性としては、インスタンス内に `exposed` というオブジェクトを持つことにし、ここに値が設定されていれば templateRef に関してはこのオブジェクトを ref に渡す感じです。
 
 ```ts
 export interface ComponentInternalInstance {
   // .
   // .
   // .
-  exposed: Record<string, any> | null // added
+  exposed: Record<string, any> | null // 追加
 }
 ```
 
-Let's implement the expose function so that objects can be registered here.
+そしてここにオブジェクトを登録できるように expose 関数を実装していきましょう。
 
 ## ProxyRefs
 
-In this chapter, we have implemented proxy and exposedProxy, but there are actually some differences from the original Vue.  
-That is, "ref is unwrapped". (In the case of proxy, setupState has this property rather than proxy.)
+このチャプターで proxy や exposedProxy を実装してきましたが、実は少々本家の Vue とは違う部分があります。  
+それは、「ref は unwrap される」という点です。(proxy の場合は proxy というより setupState がこの性質を持っています。)
 
-These are implemented with ProxyRefs, and the handler is implemented under the name `shallowUnwrapHandlers`.  
-This allows us to eliminate the redundancy of ref-specific values when writing templates or dealing with proxies.
+これらは ProxyRefs というプロキシで実装されていて、handler は`shallowUnwrapHandlers`という名前で実装されています。  
+これにより、template を記述する際や proxy を扱う際に ref 特有の value の冗長さを排除できるようになっています。
 
 ```ts
 const shallowUnwrapHandlers: ProxyHandler<any> = {
@@ -230,12 +230,12 @@ const shallowUnwrapHandlers: ProxyHandler<any> = {
 
 ```vue
 <template>
-  <!-- <p>{{ count.value }}</p>  There is no need to write like this -->
+  <!-- <p>{{ count.value }}</p>  このように書く必要はない -->
   <p>{{ count }}</p>
 </template>
 ```
 
-If you implement it up to this point, the following code should work.
+ここまで実装すると以下のようなコードが動くようになるはずです。
 
 ```ts
 import { createApp, defineComponent, h, ref } from 'chibivue'
@@ -283,10 +283,10 @@ const app = createApp({
 app.mount('#app')
 ```
 
-## Template Binding and with Statement
+## Template へのバインディングと with 文
 
-Actually, there is a problem with the changes in this chapter.  
-Let's try running the following code:
+実は、このチャプターの変更により問題が発生しています。  
+以下のようなコードを動かしてみましょう。
 
 ```ts
 const Child2 = {
@@ -298,17 +298,17 @@ const Child2 = {
 }
 ```
 
-It's just a simple code, but it doesn't work.  
-It complains that state is not defined.
+なんの変哲もないコードですが、実はこれは動きません。  
+state が定義されていないと怒られてしまいます。
 
 ![state_is_not_defined](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/state_is_not_defined.png)
 
-The reason for this is that when passing a Proxy as an argument to the with statement, has must be defined.
+これがなぜかというと、with 文の引数として Proxy を渡す場合、has を定義しないといけないためです。
 
 [Creating dynamic namespaces using the with statement and a proxy (MDN)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/with#creating_dynamic_namespaces_using_the_with_statement_and_a_proxy)
 
-So let's implement has in PublicInstanceProxyHandlers.  
-If the key exists in setupState, props, or ctx, it should return true.
+というわけで、PublicInstanceProxyHandlers に has を実装してみましょう。  
+setupState, props, ctx のいずれかに key が存在していれば true を返すようにします。
 
 ```ts
 export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
@@ -329,7 +329,7 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
 }
 ```
 
-If it works correctly, it should work fine!
+これで正常に動くようになれば OK です！
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/040_setup_context)

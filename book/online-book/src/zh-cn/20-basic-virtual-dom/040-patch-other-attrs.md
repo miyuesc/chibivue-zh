@@ -1,29 +1,29 @@
-# Patch for Props that cannot be handled
+# 対応できていない Props のパッチ
 
-In this chapter, let's implement a patch for Props that cannot be handled at the moment.
-Below are some examples of Props that need to be handled, but try to implement them by referring to the original implementation while filling in the missing parts on your own!
-By doing so, it should become more practical!
+このチャプターでは、現時点で対応できていない Props のパッチを実装していきましょう。  
+以下にはいくつか例として対応対象を挙げますが、各自で足りてない所を本家の実装を読みながら実装してみましょう！  
+そうすればより実用的なものにグレードアップするはずです！
 
-There is nothing particularly new. It should be possible to implement it sufficiently based on what we have done so far.
+特に新しいことは出てきません。今までやってきたことで十分実装できるはずです。
 
-What I want to focus on is the implementation of runtime-dom/modules.
+注目したいのは、runtime-dom/modules の実装です。
 
-## Comparison between old and new
+## 新旧の比較
 
-Currently, updates can only be made based on the props of n2.
-Let's update based on n1 and n2.
+現状だと n2 の props を元にしか更新ができていません。  
+n1 と n2 を元に更新しましょう。
 
 ```ts
 const oldProps = n1.props || {}
 const newProps = n2.props || {}
 ```
 
-Props that exist in n1 but not in n2 should be removed.
-Also, if the values are the same even if they exist in both, there is no need to patch, so skip it.
+n1 に存在していて n2n に存在しない props は削除です。  
+また、両者に存在していても値が変わっていなければ patch する必要はないのでスキップします。
 
-## class / style (Note)
+## class / style (注意)
 
-There are multiple ways to bind class and style.
+class と style には複数のバインディング方法があります。
 
 ```html
 <p class="static property">hello</p>
@@ -34,12 +34,12 @@ There are multiple ways to bind class and style.
 <p style="static: true;" :style="{ mixed-dynamic: 'true' }">hello</p>
 ```
 
-To achieve these, the concept of `transform` explained in the Basic Template Compiler section is required.
-It can be implemented anywhere as long as it does not deviate from the design of the original Vue, but we will skip it here because we want to follow the design of the original Vue in this book.
+これらを実現するには、Basic Template Compiler 部門で説明する `transform` という概念が必要になります。  
+本家 Vue の設計に則らなければどこに実装してもいいのですが、本書では本家 Vue の設計に則りたいためここではスキップします。
 
 ## innerHTML / textContent
 
-innerHTML and textContent are a bit special compared to other Props.
-This is because if an element with this Prop has child elements, they need to be unmounted.
+innerHTML と textContent については他の Props と比べて少し特殊です。
+というのもこの Prop を持つ要素が子要素を持っていた場合、unmount する必要があります。
 
-TODO: Write
+TODO: 書く

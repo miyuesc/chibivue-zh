@@ -1,25 +1,28 @@
-# Representation of VNode using bits
+# ビットによる VNode の表現
 
-## Representing the types of VNodes using bits
+## VNode の種類をビットで表現する
 
-There are various types of VNodes. For example, the ones currently implemented include:
+VNode にはいろんな種類のものがあります。例えば、今実装しているものだと、以下のようなものです。
 
 - component node
 - element node
 - text node
-- whether the child element is text or not
-- whether the child element is an array or not
+- 子要素が text かどうか
+- 子要素が配列かどうか
 
-And in the future, more types of VNodes will be implemented. For example, slot, keep-alive, suspense, teleport, etc.
+そして、これから先はさらにいろんな種類の Vnode が追加実装されることでしょう。  
+例えば、slot, keep-alive, suspense, teleport などがそうです。
 
-Currently, branching is done using conditions such as `type === Text`, `typeof type === "string"`, `typeof type === "object"`, etc.
+今のところ、`type === Text` や `typeof type === "string"`, `typeof type === "object"` などで分岐をおこなっています。
 
-Checking these conditions one by one is inefficient, so let's try representing them using bits, following the implementation of the original. In Vue, these bits are called "ShapeFlags". As the name suggests, they represent the shape of the VNode. (Strictly speaking, in Vue, ShapeFlags and symbols such as Text and Fragment are used to determine the type of VNode.)
+これらをいちいち判定するのは非効率ですし、本家の実装に倣ってビットで表現することにしてみましょう。  
+Vue ではこれらのビットは `ShapeFlags` と呼ばれています。その名の通り、VNode の Shape を表すものです。  
+(厳密には Vue ではこの ShapeFlags と Text や Fragment などの Symbol を使って VNode の種類を判別しています)  
 https://github.com/vuejs/core/blob/main/packages/shared/src/shapeFlags.ts
 
-Bit flags refer to treating each bit of a number as a specific flag.
+ビットフラグがどのようなものかというと、数値の各ビットを特定のフラグとしてみなすというものです。
 
-Let's consider the following VNode as an example:
+例として以下のような VNode を考えます。
 
 ```ts
 const vnode = {
@@ -31,27 +34,28 @@ const vnode = {
 }
 ```
 
-First, the initial value of the flag is 0. (For simplicity, this explanation is given using 8 bits.)
+まず、フラグの初期値は 0 です。(簡略化のため 8bit で説明しています。)
 
 ```ts
 let shape = 0b0000_0000
 ```
 
-Now, this VNode is an element and has an array of children, so the ELEMENT flag and the ARRAY_CHILDREN flag are set.
+ここで、この VNode は element であり、子要素を配列で持っているので ELEMENT というフラグと ARRAY_CHILDREN というフラグが立ちます。
 
 ```ts
 shape = shape | ShapeFlags.ELEMENT | ELEMENT.ARRAY_CHILDREN // 0x00010001
 ```
 
-With this, we can represent the information that this VNode is an element and has an array of children using just one number called "shape". We can efficiently manage the types of VNodes by using this in branching in the renderer or other parts of the code.
+これにより、shape というただ一つの数値で「element でありかつ、子要素を配列を持っている」という情報を表現できました。  
+あとはこれを renderer 等の分岐で使用すれば効率的に VNode の種類を管理できます。
 
 ```ts
 if (vnode.shape & ShapeFlags.ELEMENT) {
-  // Processing when vnode is an element
+  // vnodeがelementの時の処理
 }
 ```
 
-Since we are not implementing all ShapeFlags this time, please try implementing the following as an exercise:
+今回は、すべての ShapeFlags を実装するわけではないので、練習として以下を実装してみてください。
 
 ```ts
 export const enum ShapeFlags {
@@ -62,16 +66,18 @@ export const enum ShapeFlags {
 }
 ```
 
-Here's what you need to do:
+やることとしては、
 
-- Define the flags in shared/shapeFlags.ts
-- Define the shape in runtime-core/vnode.ts
+- shared/shapeFlags.ts にフラグを定義
+- runtime-core/vnode.ts で vnode に shape を定義
   ```ts
   export interface VNode<HostNode = any> {
     shapeFlag: number
   }
   ```
-  Add this and calculate the flag in functions like createVNode.
-- Implement branching logic based on the shape in the renderer.
+  を追加し、createVNode などで flag を算出してください。
+- renderer では shape を元に分岐処理を実装する。
 
-That's it for the explanation of this chapter. Let's start implementing it!
+です!
+
+なんとこのチャプターの説明は以上です。実際に実装していきましょう !

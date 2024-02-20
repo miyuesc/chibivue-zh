@@ -1,17 +1,17 @@
 # computed / watch api
 
 ::: warning
-[Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) was released at the end of December 2023, which includes [performance improvements for reactivity](https://github.com/vuejs/core/pull/5912).  
-You should note that this online book is referencing the previous implementation.  
-We plan to update this online book at the appropriate time.
+2023 年 の 12 月末に [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) がリリースされましたが、これには [reactivity のパフォーマンス改善](https://github.com/vuejs/core/pull/5912) が含まれています。  
+このオンラインブックはそれ以前の実装を参考にしていることに注意しくてださい。  
+然るべきタイミングでこのオンラインブックも追従する予定です。  
 :::
 
-## Review of computed (and implementation)
+## computed のおさらい (と実装)
 
-In the previous chapter, we implemented the ref-related APIs. Next, let's talk about computed.
+前のチャプターで ref 系の api を実装しました。続いては computed です。  
 https://vuejs.org/api/reactivity-core.html#computed
 
-Computed has two signatures: read-only and writable.
+computed には読み取り専用と書き込み可能の 2 つのシグネチャがあります。
 
 ```ts
 // read-only
@@ -31,9 +31,9 @@ function computed<T>(
 ): Ref<T>
 ```
 
-The official implementation is a bit complex, but let's start with a simple structure.
+本家の実装は短いながらに少しだけ複雑なので、まずはシンプルな構成を考えてみましょう。
 
-The simplest way to implement it is to trigger the callback every time the value is retrieved.
+最も簡単な方法として思いつくのは、value を get する際に毎度コールバックを発火するという手法でしょう。
 
 ```ts
 export class ComputedRefImpl<T> {
@@ -47,14 +47,14 @@ export class ComputedRefImpl<T> {
 }
 ```
 
-However, this is not really computed. It's just calling a function (which is not very exciting).
+しかしこれでは computed というか、ただ関数を呼んでいるだけです (そりゃそう。特に何も嬉しくないですね、残念。)
 
-In reality, we want to track dependencies and recalculate when the value changes.
+実際には依存関係を追跡し、その値が変更されたときに再計算したいわけです。
 
-To achieve this, we use a mechanism where we update the `_dirty` flag as a scheduler job.
-The `_dirty` flag is a flag that represents whether the value needs to be recalculated or not. It is updated when triggered by a dependency.
+これをどのように実現しているかというと、\_dirty フラグの書き換えをスケジューラのジョブとして実行するような仕組みになっています。
+\_dirty フラグというのはいわば「再計算する必要があるか?」という状態を持つフラグで、依存によって trigger された場合にこのフラグを書き換えます。
 
-Here's an example of how it works:
+イメージ的には以下のようなものです。
 
 ```ts
 export class ComputedRefImpl<T> {
@@ -82,22 +82,23 @@ export class ComputedRefImpl<T> {
 }
 ```
 
-Computed actually has a lazy evaluation nature, so the value is only recalculated when it is read for the first time.
-We update this flag to true and the function is triggered by multiple dependencies, so we register it as the scheduler of ReactiveEffect.
+computed は実は遅延評価のような性質を持っており、再計算が必要な場合は値が読み取られる際に初めて再計算されます。
+そしてこのフラグを true に書き換え関数は不特定多数の依存に trigger されるため、ReactiveEffect の scheduler として登録します。
 
-This is the basic flow. When implementing, there are a few points to note, so let's summarize them below.
+基本的な流れはこのような感じです。実装するにあたって、加えて注意する点がいくつかあるので以下にまとめておきます。
 
-- When updating the `_dirty` flag to true, trigger the dependencies it has.
+- \_dirty フラグを true に書き換えた段階で自信が持つ依存関係は trigger してしまう
   ```ts
   if (!this._dirty) {
     this._dirty = true
     triggerRefValue(this)
   }
   ```
-- Since computed is classified as `ref`, mark `__v_isRef` as true.
-- If you want to implement a setter, implement it last. First, aim to make it computable.
+- computed も分類的には`ref`なので、`__v_isRef`を true にマークしておく
+- setter を実装したかったら最後に実装する。まずは算出できるようになることを目指す
 
-Now that we are ready, let's implement it! If the code below works as expected, it's OK! (Please make sure that only the computed dependencies are triggered!)
+さて、これで準備は整ったので実際に実装してみましょう！  
+以下のようなコードが期待通りに動けば OK です！　(それぞれ、依存している computed だけが発火することを確認してください！　)
 
 ```ts
 import { computed, createApp, h, reactive, ref } from 'chibivue'
@@ -138,17 +139,17 @@ const app = createApp({
 app.mount('#app')
 ```
 
-Source code up to this point:
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/050_computed)
-(with setter):
+(setter 込みはこちら):  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/060_computed_setter)
 
-## Implementation of Watch
+## Watch の実装
 
 https://vuejs.org/api/reactivity-core.html#watch
 
-There are various forms of the watch API. Let's start by implementing the simplest form, which watches using a getter function.
-First, let's aim for the code below to work.
+watch にもいろんな形式の api があります。まずは最も単純な、getter 関数によって監視するような api を実装してみましょう。
+まずは、以下のようなコードが動くことを目指します。
 
 ```ts
 import { createApp, h, reactive, watch } from 'chibivue'
@@ -172,10 +173,11 @@ const app = createApp({
 app.mount('#app')
 ```
 
-The implementation of watch is not in reactivity, but in runtime-core (apiWatch.ts).
+watch の実装は reactivity ではなく、runtime-core の方に実装していきます (apiWatch.ts)。
 
-It may look a bit complex because there are various APIs mixed together, but it's actually quite simple if you narrow down the scope.
-I have already implemented the signature of the target API (watch function) below, so please try implementing it. I believe you can do it if you have acquired the knowledge of reactivity so far!
+さまざまな api が混在しているので、少し複雑に見えますが、範囲を絞ればとても単純なことです。  
+目標とする api(watch 関数)のシグネチャを以下に実装しておくので、是非実装してみてください。  
+今までリアクティビティの知識を培ってきたみなさんなら実装できると思います！
 
 ```ts
 export type WatchEffect = (onCleanup: OnCleanup) => void
@@ -192,21 +194,21 @@ export function watch<T>(
 }
 ```
 
-Source code up to this point:
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/070_watch)
 
-## Other APIs of watch
+## watch の その他の api
 
-Once you have the base, it's just a matter of extending it. There is no need for further explanation.
+ベースができてしまえば、後は拡張するだけです。これも特に解説は必要ないでしょう。
 
-- Watching ref
+- ref の監視
   ```ts
   const count = ref(0)
   watch(count, () => {
     /** some effects */
   })
   ```
-- Watching multiple sources
+- 複数の source の監視
 
   ```ts
   const count = ref(0)
@@ -215,9 +217,10 @@ Once you have the base, it's just a matter of extending it. There is no need for
   watch([count, count2, count3], () => {
     /** some effects */
   })
+  ;``
   ```
 
-- Immediate
+- immediate
 
   ```ts
   const count = ref(0)
@@ -230,7 +233,7 @@ Once you have the base, it's just a matter of extending it. There is no need for
   )
   ```
 
-- Deep
+- deep
 
   ```ts
   const state = reactive({ count: 0 })
@@ -243,7 +246,7 @@ Once you have the base, it's just a matter of extending it. There is no need for
   )
   ```
 
-- Reactive object
+- reactive object
 
   ```ts
   const state = reactive({ count: 0 })
@@ -252,14 +255,14 @@ Once you have the base, it's just a matter of extending it. There is no need for
   }) // automatically in deep mode
   ```
 
-Source code up to this point:
+ここまでのソースコード:
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/080_watch_api_extends)
 
 ## watchEffect
 
 https://vuejs.org/api/reactivity-core.html#watcheffect
 
-Implementing watchEffect is easy using the watch implementation.
+watch の実装を使えば watchEffect の実装は簡単です。
 
 ```ts
 const count = ref(0)
@@ -271,11 +274,11 @@ count.value++
 // -> logs 1
 ```
 
-You can implement it like immediate for the image.
+イメージてには immediate のような実装をすれば OK です。
 
-Source code so far:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/090_watch_effect)
 
 ---
 
-※ Cleanup will be done in a separate chapter.
+※ クリーンアップについては別のチャプターで行います。

@@ -1,63 +1,73 @@
-# How to Proceed with This Book and Environment Setup
+# 本書の進め方と環境構築
 
-## How to Proceed with This Book
+## 本書の進め方
 
-We will promptly start with a simple implementation of Vue.js. Here are some points to keep in mind, precautions, and other essential information:
+これから早速 Vue.js の実装を小さく行なっていきます。  
+それに伴う心構えや注意点、その他知っておくべき情報を以下に列挙します。
 
-- The project name will be "chibivue." We will refer to the basic Vue.js implementations covered in this book as "chibivue."
-- As initially mentioned, our primary approach will be "repeating small developments."
-- Source codes for each phase are included in the appendix of this book and can be found at https://github.com/Ubugeeei/chibivue/tree/main/book/impls. We will not provide detailed explanations for all the source code in the book, so please refer to the appendix as needed.
-- The final code depends on several packages. A common issue with DIY content is the debate over "how much one should implement by hand to call it homemade." While we won't write all source code by hand in this book, we will actively use packages similar to those used in Vue.js's official code. For example, we'll use Babel. Rest assured, we aim to make this book as beginner-friendly as possible, providing minimal explanations for necessary packages.
+- プロジェクト名は chibivue とします。  
+  本書で実装する Vue.js の基本実装をまとめて chibivue と呼ぶことにします。
+- 基本方針は最初に話した通り、「小さい開発を繰り返す」です。
+- この本の付録として各フェーズのソースコードを https://github.com/Ubugeeei/chibivue/tree/main/book/impls に載せてあります。  
+  この本では具体的な説明を全てのソースコードに対して行うわけではないので、その辺りは随時こちらを参照していただければと思います。
+- 完成系のコードはいくつかのパッケージに依存しています。  
+  これは自作系のコンテンツにありがちな問題なのですが、「どこからどこまで自分の手で実装すれば自作と言えるのだろう」という議論がしばしば挙げられます。  
+  例によってこの本も全てのソースコードを手で書くわけではありません。  
+  今回は Vue.js 本家のコードが使っているようなパッケージは積極的に使っていきます。例えば、Babel がその一つです。  
+  しかし安心してもらいたいのは、今回の本では前程知識を必要としないことを目指しているので必要になったパッケージについて必要最低限説明を加えます。
 
-## Environment Setup
+## 環境構築
 
-Now, let's quickly move on to setting up the environment! I'll list the tools and versions we'll be using:
+さて、早速ですが環境構築からやっていきましょう！
+一応先に今回構築する環境の内容を列挙しておきます
 
-- Runtime: Node.js v18.x
-- Language: TypeScript
-- Package Manager: pnpm v8.x
-- Bundler: Vite v3.x
+- ランタイム: Node.js 18.x
+- 言語: TypeScript
+- パッケージマネージャ: pnpm 8.x
+- バンドラ: Vite 3.x
 
-## Installing Node.js
+## Node.js インストール
 
-Most of you are probably familiar with this step. Please set it up on your own. We will skip the detailed explanation here.
+おそらくここは大丈夫でしょう。各自で用意してください。
+説明については省略します。
 
-## Installing pnpm
+## pnpm のインストール
 
-Many of you might typically use npm or yarn. For this book, we will be using pnpm, so please install it as well. The commands are mostly similar to npm.
+もしかすると普段は npm や yarn を使っている方が多いかもしれません。  
+今回は pnpm を使っていくので、こちらの方も合わせてインストールしてください。  
+基本的なコマンドは npm とほとんど一緒です。  
 https://pnpm.io/installation
 
-In addition to the above, this book also uses [ni](https://github.com/antfu/ni), which can be humorously referred to as a "package manager manager".  
-(It was created by antfu from the Vue.js core team.)
+また、本書では上記に加え、パッケージマネージャのマネージャ(?) である [ni](https://github.com/antfu/ni) を使っています。  
+(Vue.js core team の [antfu](https://github.com/antfu) さんが作っています。)
 
-If you haven't set it up yet, please also install it:
+こちらのセットアップがまだな方はこちらも合わせてインストールしてください。
 
 ```sh
 $ npm i -g @antfu/ni
 ```
 
-[ni](https://github.com/antfu/ni) is a handy tool that automatically switches between various package managers for you.
+ni は様々なパッケージマネージャを自動で使い分けてくれる便利ツールです。  
 
-Interestingly, this tool is also used in the actual development of Vue.js.  
+こちらは実は本家の Vue.js の開発でも使われています。
 https://github.com/vuejs/core/blob/main/.github/contributing.md#scripts
 
-For package installations, starting the development server, and other tasks, we will be using the ni command.
+パッケージのインストールや開発サーバーの起動などは ni のコマンドを使っていきます。
 
-## Creating the Project
+## プロジェクトの作成
 
-::: details Quick Start for those in a hurry ...
+::: details 手っ取り早くスタートしたい ...
+これから、手動でプロジェクトを作成する手順を説明するのですが、実は構築用のツールも用意しています。  
+面倒くさい方は是非こちらを使ってください！
 
-Although I'll be explaining the steps to create a project manually, there's actually a tool prepared for the setup.  
-If you find the manual process tedious, please feel free to use this tool!
-
-1. Clone chibivue.
+1. chibivue をクローンする
 
    ```sh
    $ git clone https://github.com/Ubugeeei/chibivue
    ```
 
-2. Execute the script.  
-    Enter the path of the directory you want to set up.
+2. script を実行.  
+   セットアップしたいディレクトリのパスを入力してください.
 
    ```sh
    $ cd chibivue
@@ -66,28 +76,33 @@ If you find the manual process tedious, please feel free to use this tool!
 
 :::
 
-Create the project in any directory of your choice. For convenience, we'll denote the project's root path as `~` (e.g., `~/src/main.ts`).
+任意のディレクトリでプロジェクトを作成します。
+ここからは便宜上プロジェクトのルートパスを`~`と表現します。(例: `~/src/main.ts`など)
 
-This time, we will separate the main "chibivue" from a playground to test its functionality. The playground will simply invoke "chibivue" and bundle it with Vite. We anticipate a structure like this.
+今回は、chibivue の本体と動作を確認するためのプレイグラウンドを分けて実装してみます。
+といってもプレイグラウンド側で chibivue を呼び出して vite でバンドルするだけです。
+このような構成にする想定です。
 
 ```
+
 ~
 |- examples
-|    |- playground
+| |- playground
 |
 |- packages
 |- tsconfig.js
+
 ```
 
-We will implement the playground in a directory named "examples."
-We will implement the core TypeScript files for chibivue in "packages" and import them from the example side.
+examples というディレクトリにプレイグラウンドを実装します。
+packages に chibivue 本体の TypeScript ファイル群を実装して、example 側からそれを import する形にします。
 
-Below are the steps to construct it.
+以下はそれを構築する手順です。
 
-### Building the Main Project
+### プロジェクト本体の構築
 
 ```sh
-## Please create a directory specifically for chibivue and navigate into it. (Such notes will be omitted hereafter.)
+## 実際はchibivue用のディレクトリを作って移動してください (以下、同様の注釈は省略します。)
 pwd # ~/
 pnpm init
 ni -D @types/node
@@ -96,7 +111,7 @@ touch packages/index.ts
 touch tsconfig.json
 ```
 
-Contents of tsconfig.json
+tsconfig.json の内容
 
 ```json
 {
@@ -117,15 +132,15 @@ Contents of tsconfig.json
 }
 ```
 
-Contents of packages/index.ts
+packages/index.ts の内容
 
 ```ts
 export const helloChibivue = () => {
-  console.log('Hello chibivue!')
-}
+  console.log("Hello chibivue!");
+};
 ```
 
-### ### Building the Playground Side
+### プレイグラウンド側の構築
 
 ```sh
 pwd # ~/
@@ -133,36 +148,35 @@ mkdir examples
 cd examples
 nlx create-vite
 
-## --------- Setting up with the Vite CLI
+## --------- create vite cliの設定
 ## Project name: playground
 ## Select a framework: Vanilla
 ## Select a variant: TypeScript
 ```
 
-Remove unnecessary items from the project created with Vite.
+vite で作成したプロジェクトのうち、不要なものを削除します。
 
 ```sh
 pwd # ~/examples/playground
 rm -rf public
-rm -rf src # We will recreate it since there are unnecessary files.
+rm -rf src # 不要なファイルがあるので一旦作り直します。
 mkdir src
 touch src/main.ts
 ```
 
-Contents of src/main.ts
-
-※ For now, there will be an error after "from," but we will address this in the upcoming steps, so it's not a problem.
+src/main.ts の中身
+※ 一旦 from の後ろのエラーが出ますがこれから設定するので問題ありません。
 
 ```ts
-import { helloChibivue } from 'chibivue'
+import { helloChibivue } from "chibivue";
 
-helloChibivue()
+helloChibivue();
 ```
 
-Modify index.html as follows.
+index.html を以下のように書き換えます。
 
 ```html
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -177,14 +191,14 @@ Modify index.html as follows.
 </html>
 ```
 
-Configure an alias in the Vite project to be able to import what you implemented in chibivue.
+Vite で作成したプロジェクトで chibivue で実装したものを import できるようにエイリアスの設定をします。
 
 ```sh
 pwd # ~/examples/playground
 touch vite.config.js
 ```
 
-Contents of vite.config.js
+vite.config.ts の内容
 
 ```ts
 import path from 'node:path'
@@ -201,7 +215,7 @@ export default defineConfig({
 })
 ```
 
-Modify tsconfig.json as follows.
+tsconfig.json の中身を以下のように書き換えます。
 
 ```json
 {
@@ -209,7 +223,10 @@ Modify tsconfig.json as follows.
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
     "moduleResolution": "Node",
     "strict": true,
     "resolveJsonModule": true,
@@ -221,16 +238,20 @@ Modify tsconfig.json as follows.
     "noImplicitReturns": true,
     "skipLibCheck": true,
     "paths": {
-      "chibivue": ["../../packages"]
+      "chibivue": [
+        "../../packages"
+      ],
     }
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }
 ```
 
-Lastly, let's add a command to the package.json of the chibivue project to launch the playground and try starting it!
+最後に、chibivue プロジェクトの package.json に playground を起動するコマンドを記述して実際に起動してみましよう！
 
-Append the following to ~/package.json
+~/package.json に以下を追記
 
 ```json
 {
@@ -245,9 +266,9 @@ pwd # ~
 nr dev
 ```
 
-Access the developer server that started with this command. If a message displays, then the setup is complete.
+このコマンドで立ち上がった開発者サーバーにアクセスし、メッセージが表示されていれば完了です！
 
 ![hello chibivue](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/hello_chibivue.png)
 
-Source code up to this point:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls//00_introduction/010_project_setup)
+ここまでのソースコード:  
+[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/00_introduction/010_project_setup)

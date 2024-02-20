@@ -1,10 +1,10 @@
-# I want to write more complex HTML
+# もっと複雑な HTML を書きたい
 
-## I want to write more complex HTML
+## もっと複雑な HTML を書きたい
 
-In the current state, I can only express the names and attributes of tags, and the content of text.
-Therefore, I want to be able to write more complex HTML in the template.
-Specifically, I want to be able to compile a template like this:
+今の状態だとせいぜいタグの名前や属性、テキストの内容くらいしか表すことができていません。  
+そこで、もっと複雑な HTML を template に書けるようにしたいです。
+具体的には、これくらいのテンプレートをコンパイルできるようになりたいです。
 
 ```ts
 const app = createApp({
@@ -33,19 +33,19 @@ const app = createApp({
 app.mount('#app')
 ```
 
-However, it is difficult to parse such complex HTML with regular expressions. So, from here, I will implement a parser in earnest.
+しかしこれだけ複雑なものは正規表現でパースするのは厳しいのです。なので、ここからは本格的にパーサを実装していこうと思います。
 
-## Introduction of AST
+## AST の導入
 
-In order to implement a full-fledged compiler, I will introduce something called AST (Abstract Syntax Tree).
-AST stands for Abstract Syntax Tree, and as the name suggests, it is a data representation of a tree structure that represents syntax.
-This is a concept that appears when implementing various compilers, not just Vue.js.
-In many cases (in language processing systems), "parsing" refers to converting it into this representation called AST.
-The definition of AST is defined by each language.
-For example, JavaScript, which you are familiar with, is represented by AST called [estree](https://github.com/estree/estree), and the source code string is parsed according to this definition.
+本格的なコンパイラを実装していくにあたって AST というものを導入します。  
+AST は Abstract Syntax Tree (抽象構文木)の略で、名前の通り、構文を表現する木構造のデータ表現です。  
+これは、Vue.js に限らず、さまざまなコンパイラを実装するときに登場する概念です。  
+多くの場合(言語処理系においては)、「パース」というと、この AST という表現に変換することを指します。  
+AST の定義はそれぞれの言語が各自で定義します。  
+例えば、皆さんが馴染み深いであろう JavaScript は [estree](https://github.com/estree/estree) という AST で表現されていて、内部的にはソースコードの文字列がこの定義に沿ってパースされていたりします。
 
-I tried to explain it in a cool way, but in terms of image, it is just a formal definition of the return type of the parse function that we have implemented so far.
-Currently, the return value of the parse function is as follows:
+と、少しかっこいい感じの説明をしてみましたが、イメージ的にはこれまで実装していた parse 関数の戻り値の型をもっとかっちり形式的に定義するだけです。
+今現状だと、parse 関数の戻り値は以下のようになっています。
 
 ```ts
 type ParseResult = {
@@ -55,42 +55,42 @@ type ParseResult = {
 }
 ```
 
-Let's extend this and define it so that more complex expressions can be performed.
+これを拡張して、もっと複雑な表現を行えるような定義にしてみます。
 
-Create a new file `~/packages/compiler-core/ast.ts`.
-I will explain while writing the code because it is a bit long.
+新たに `~/packages/compiler-core/ast.ts` を作成します。  
+少し長いので、コード中に説明を書きながら説明を進めます。
 
 ```ts
-// This represents the type of node.
-// It should be noted that the Node here does not refer to the HTML Node, but rather the granularity handled by this template compiler.
-// So, not only Element and Text, but also Attribute are treated as one Node.
-// This is in line with the design of Vue.js and will be useful when implementing directives in the future.
+// これは Node の種類を表すものです。
+// 注意するべき点としては、ここでいう Node というのは HTML の Node のことではなく、あくまでこのテンプレートコンパイラで扱う粒度であるということです。
+// なので、 Element やTextだけでなく Attribute も一つの Node として扱われます。
+// これは Vue.js の設計に沿った粒度で、今後、ディレクティブを実装する際などに役に立ちます。
 export const enum NodeTypes {
   ELEMENT,
   TEXT,
   ATTRIBUTE,
 }
 
-// All Nodes have type and loc.
-// loc stands for location and holds information about where this Node corresponds to in the source code (template string).
-// (e.g. which line and where on the line)
+// 全ての Node は type と loc を持っています。
+// loc というのは location のことで、この Node がソースコード(テンプレート文字列)のどこに該当するかの情報を保持します。
+// (何行目のどこにあるかなど)
 export interface Node {
   type: NodeTypes
   loc: SourceLocation
 }
 
-// Node for Element.
+// Element の Node です。
 export interface ElementNode extends Node {
   type: NodeTypes.ELEMENT
-  tag: string // e.g. "div"
-  props: Array<AttributeNode> // e.g. { name: "class", value: { content: "container" } }
+  tag: string // eg. "div"
+  props: Array<AttributeNode> // eg. { name: "class", value: { content: "container" } }
   children: TemplateChildNode[]
-  isSelfClosing: boolean // e.g. <img /> -> true
+  isSelfClosing: boolean // eg. <img /> -> true
 }
 
-// Attribute that ElementNode has.
-// It could have been expressed as just Record<string, string>,
-// but it is defined to have name(string) and value(TextNode) like Vue.
+// ElementNode が持つ属性です。
+// ただの Record<string, string> と表現してしまってもいいのですが、
+// Vue に倣って name(string) と value(TextNode) を持つようにしています。
 export interface AttributeNode extends Node {
   type: NodeTypes.ATTRIBUTE
   name: string
@@ -104,10 +104,9 @@ export interface TextNode extends Node {
   content: string
 }
 
-// Information about location.
-// Node has this information.
-// start and end contain position information.
-// source contains the actual code (string).
+// location の情報です。 Node はこの情報を持ちます。
+// start, end に位置情報が入ります。
+// source には実際のコード(文字列)が入ります。
 export interface SourceLocation {
   start: Position
   end: Position
@@ -121,24 +120,24 @@ export interface Position {
 }
 ```
 
-This is the AST we will be dealing with this time.
-In the parse function, we will implement the conversion of the template string into this AST.
+これらが今回扱う AST です。  
+parse 関数では template の文字列をこの AST に変換するような実装をしていきます。
 
-## Implementation of a full-fledged parser
+## 本格的なパーサの実装
 
 ::: warning
-In late November 2023, a major rewrite for performance improvement was conducted in [vuejs/core#9674](https://github.com/vuejs/core/pull/9674).  
-These changes were released as [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) in late December 2023.  
-Please note that this online book refers to the implementation prior to this rewrite.  
-We plan to update this online book accordingly at the appropriate timing.
+2023 年 11 月下旬に vuejs/core で [パフォーマンス改善のための大規模なリライト](https://github.com/vuejs/core/pull/9674) が行われました。  
+これらは 2023 年 の 12 月末に [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) としてリリースされました。
+このオンラインブックはそのリライト以前の実装を参考にしていることに注意しくてださい。  
+然るべきタイミングでこのオンラインブックも追従する予定です。  
 :::
 
-Implement it in `~/packages/compiler-core/parse.ts`.
-Even if I say it's full-fledged, you don't have to be too nervous. Basically, all you're doing is generating an AST while reading the string and using branching and looping.
-The source code will be a bit longer, but I think the explanation will be easier to understand in the code base. So let's proceed that way.
-Please try to understand the details by reading the source code.
+`~/packages/compiler-core/parse.ts` に本格的な実装していきます。  
+本格的と言ってもあまり身構えなくて大丈夫です。やっていることは基本的に文字列を読み進めながら分岐やループを活用して AST を生成しているだけです。  
+ソースコードが少し多くなりますが、説明もコードベースの方が分かりやすいと思うのでそう進めていきます。  
+細かい部分はぜひソースコードを読んで把握してみてください。
 
-Delete the contents of baseParse that you have implemented so far, and change the return type as follows:
+今実装してある baseParse の内容は一旦消して、戻り値の型も以下のようにします。
 
 ```ts
 import { TemplateChildNode } from './ast'
@@ -153,16 +152,16 @@ export const baseParse = (
 
 ## Context
 
-First, let's implement the state used during parsing. We will name it `ParserContext` and gather the necessary information during parsing here. Eventually, I think it will also hold parser configuration options, etc.
+まずは parse する際に使う状態から実装します。これは `ParserContext`という名前をつけて、パース中に必要な情報をここにまとめます。ゆくゆくはパーサーの設定オプションなども保持するようになると思います。
 
 ```ts
 export interface ParserContext {
-  // The original template string
+  // 元々のテンプレート文字列
   readonly originalSource: string
 
   source: string
 
-  // The current position that this parser is reading
+  // このパーサが読み取っている現在地
   offset: number
   line: number
   column: number
@@ -181,7 +180,7 @@ function createParserContext(content: string): ParserContext {
 export const baseParse = (
   content: string,
 ): { children: TemplateChildNode[] } => {
-  const context = createParserContext(content) // Create context
+  const context = createParserContext(content) // contextを生成
 
   // TODO:
   return { children: [] }
@@ -190,24 +189,24 @@ export const baseParse = (
 
 ## parseChildren
 
-In terms of order, the parsing progresses as follows: (parseChildren) -> (parseElement or parseText).
+順番的には、(parseChildren) -> (paseElement または parseText)とパースを進めていきます。
 
-Although it is a bit long, let's start with the implementation of parseChildren. The explanation will be done in the comments in the source code.
+少し長いですが、parseChildren の実装からです。説明はソースコード中のコメントアウトで行います。
 
 ```ts
 export const baseParse = (
   content: string,
 ): { children: TemplateChildNode[] } => {
   const context = createParserContext(content)
-  const children = parseChildren(context, []) // Parse child nodes
+  const children = parseChildren(context, []) // 子ノードをパースする
   return { children: children }
 }
 
 function parseChildren(
   context: ParserContext,
 
-  // Since HTML has a recursive structure, we keep the ancestor elements as a stack and push them each time we nest in a child.
-  // When an end tag is found, parseChildren ends and pops the ancestors.
+  // HTMLは再起的な構造を持っているので、祖先要素をスタックとして持っておいて、子にネストして行くたびにpushしていきます。
+  // endタグを見つけるとparseChildrenが終了してancestorsをpopする感じです。
   ancestors: ElementNode[],
 ): TemplateChildNode[] {
   const nodes: TemplateChildNode[] = []
@@ -217,15 +216,15 @@ function parseChildren(
     let node: TemplateChildNode | undefined = undefined
 
     if (s[0] === '<') {
-      // If s starts with "<" and the next character is an alphabet, it is parsed as an element.
+      // sが"<"で始まり、かつ次の文字がアルファベットの場合は要素としてパースします。
       if (/[a-z]/i.test(s[1])) {
-        node = parseElement(context, ancestors) // TODO: Implement this later.
+        node = parseElement(context, ancestors) // TODO: これから実装します。
       }
     }
 
     if (!node) {
-      // If it does not match the above conditions, it is parsed as a TextNode.
-      node = parseText(context) // TODO: Implement this later.
+      // 上記の条件に当てはまらなかった場合はTextNodeとしてパースします。
+      node = parseText(context) // TODO: これから実装します。
     }
 
     pushNode(nodes, node)
@@ -234,11 +233,11 @@ function parseChildren(
   return nodes
 }
 
-// Function to determine the end of the while loop for parsing child elements
+// 子要素パースの while を判定(パース終了)するための関数
 function isEnd(context: ParserContext, ancestors: ElementNode[]): boolean {
   const s = context.source
 
-  // If s starts with "</" and the tag name of ancestors follows, it determines whether there is a closing tag (whether parseChildren should end).
+  // sが"</"で始まり、かつその後にancestorsのタグ名が続くことを判定し、閉じタグがあるか(parseChildrenが終了するべきか)を判定します。
   if (startsWith(s, '</')) {
     for (let i = ancestors.length - 1; i >= 0; --i) {
       if (startsWithEndTagOpen(s, ancestors[i].tag)) {
@@ -255,7 +254,7 @@ function startsWith(source: string, searchString: string): boolean {
 }
 
 function pushNode(nodes: TemplateChildNode[], node: TemplateChildNode): void {
-  // If nodes of type Text are continuous, they are combined.
+  // nodeTypeがTextのものが連続している場合は結合してあげます
   if (node.type === NodeTypes.TEXT) {
     const prev = last(nodes)
     if (prev && prev.type === NodeTypes.TEXT) {
@@ -280,16 +279,16 @@ function startsWithEndTagOpen(source: string, tag: string): boolean {
 }
 ```
 
-Next, let's implement parseElement and parseText.
+続いて parseElement と parseText について実装していきます。
 
-::: tip About the isEnd Loop
-In isEnd, there is a loop process that checks whether 's' starts with the closing tag of each element in the ancestors array using startsWithEndTagOpen.
+::: tip isEnd のループについて
+isEnd では ancestors の配列のそれぞれの要素に対して startsWithEndTagOpen で s がその要素の閉じタグで始まっている文字列かどうかをループでチェックするような処理になっています。
 
 ```ts
 function isEnd(context: ParserContext, ancestors: ElementNode[]): boolean {
   const s = context.source
 
-  // If s starts with </ and the tag name of ancestors follows, it determines whether there is a closing tag (whether parseChildren should end).
+  // s が '</' で始まり、かつその後にancestorsのタグ名が続くことを判定し、閉じタグがあるか(parseChildrenが終了するべきか)を判定します。
   if (startsWith(s, '</')) {
     for (let i = ancestors.length - 1; i >= 0; --i) {
       if (startsWithEndTagOpen(s, ancestors[i].tag)) {
@@ -302,16 +301,16 @@ function isEnd(context: ParserContext, ancestors: ElementNode[]): boolean {
 }
 ```
 
-However, if you need to check whether 's' starts with a closing tag, it should be sufficient to check only the last element in ancestors. Although this section of code was eliminated in a recent rewrite of the parser, modifying the Vue 3.3 code to only check the last element in ancestors still results in all the positive tests passing successfully.
+しかし、s が閉じタグで始まっている文字列かどうかをチェックするのであれば、ancestors の最後の要素に対してのみチェックすれば良いはずです。parser のリライトによってこのコードは無くなってしまいましたが、リライト前の Vue 3.3 のコードで ancestors の最後の要素に対してのみチェックするようにコードを書き換えても正常系のテストは全て PASS します。
 :::
 
 ## parseText
 
-First, let's start with the simple parseText. It is a bit long because it also implements some utilities that are used not only in parseText but also in other functions.
+まずはシンプルな parseText の方から.一部、parseText 以外でも使うユーティリティも実装しているので少しだけ長いです。
 
 ```ts
 function parseText(context: ParserContext): TextNode {
-  // Read until "<" (regardless of whether it is the start or end tag), and calculate the index of the end point of the Text data based on how many characters were read.
+  // "<" (タグの開始(開始タグ終了タグ問わず))まで読み進め、何文字読んだかを元にTextデータの終了時点のindexを算出します。
   const endToken = '<'
   let endIndex = context.source.length
   const index = context.source.indexOf(endToken, 1)
@@ -319,9 +318,9 @@ function parseText(context: ParserContext): TextNode {
     endIndex = index
   }
 
-  const start = getCursor(context) // For loc
+  const start = getCursor(context) // これは loc 用
 
-  // Parse Text data based on the information of endIndex.
+  // endIndexの情報を元に Text データをパースします。
   const content = parseTextData(context, endIndex)
 
   return {
@@ -331,14 +330,14 @@ function parseText(context: ParserContext): TextNode {
   }
 }
 
-// Extract text based on content and length.
+// content と length を元に text を抽出します。
 function parseTextData(context: ParserContext, length: number): string {
   const rawText = context.source.slice(0, length)
   advanceBy(context, length)
   return rawText
 }
 
-// -------------------- The following are utilities (also used in parseElement, etc.) --------------------
+// -------------------- 以下からはユーティリティです。(parseElementなどでも使う) --------------------
 
 function advanceBy(context: ParserContext, numberOfCharacters: number): void {
   const { source } = context
@@ -346,8 +345,8 @@ function advanceBy(context: ParserContext, numberOfCharacters: number): void {
   context.source = source.slice(numberOfCharacters)
 }
 
-// Although it is a bit long, it simply calculates the position.
-// It destructively updates the pos object received as an argument.
+// 少し長いですが、やっていることは単純で、 pos の計算を行っています。
+// 引数でもらった pos のオブジェクトを破壊的に更新しています。
 function advancePositionWithMutation(
   pos: Position,
   source: string,
@@ -393,9 +392,9 @@ function getSelection(
 
 ## parseElement
 
-Next is the parsing of elements.  
-The parsing of elements mainly consists of parsing the start tag, parsing child nodes, and parsing the end tag. The parsing of the start tag is further divided into tag name and attributes.  
-Let's start by creating a framework for parsing the first half of the start tag, child nodes, and the end tag.
+続いて要素のパースです。  
+要素のパースは主に start タグのパース、子 Node のパース、end タグのパースで成り立っていて、start タグのパースはさらにタグ名、属性に分かれます。  
+まずは前半の start タグ, 子 Node, end タグをパースするガワを作っていきましょう。
 
 ```ts
 const enum TagType {
@@ -410,7 +409,7 @@ function parseElement(
   // Start tag.
   const element = parseTag(context, TagType.Start) // TODO:
 
-  // If it is a self-closing element like <img />, we end here (since there are no children or end tag).
+  // <img /> のような self closing の要素の場合にはここで終了です。( children も end タグもないので)
   if (element.isSelfClosing) {
     return element
   }
@@ -431,10 +430,10 @@ function parseElement(
 }
 ```
 
-There is nothing particularly difficult here. The `parseChildren` function is recursive (since `parseElement` is called by `parseChildren`).  
-We are manipulating the `ancestors` data structure as a stack before and after.
+とくに難しいことはないと思います。ここで parseChildren が再帰しています。(parseElement は parseChildren に呼ばれるので)  
+前後で ancestors というスタック構造のデータを操作しています。
 
-Let's implement `parseTag`.
+parseTag を実装していきます。
 
 ```ts
 function parseTag(context: ParserContext, type: TagType): ElementNode {
@@ -452,7 +451,7 @@ function parseTag(context: ParserContext, type: TagType): ElementNode {
   // Tag close.
   let isSelfClosing = false
 
-  // If the next characters are "/>", it is a self-closing tag.
+  // 属性まで読み進めた時点で、次が "/>" だった場合は SelfClosing とする
   isSelfClosing = startsWith(context.source, '/>')
   advanceBy(context, isSelfClosing ? 2 : 1)
 
@@ -466,7 +465,7 @@ function parseTag(context: ParserContext, type: TagType): ElementNode {
   }
 }
 
-// Parsing the entire attributes (multiple attributes).
+// 属性全体(複数属性)のパース
 // eg. `id="app" class="container" style="color: red"`
 function parseAttributes(
   context: ParserContext,
@@ -475,7 +474,7 @@ function parseAttributes(
   const props = []
   const attributeNames = new Set<string>()
 
-  // Continue reading until the end of the tag.
+  // タグが終わるまで読み続ける
   while (
     context.source.length > 0 &&
     !startsWith(context.source, '>') &&
@@ -487,7 +486,7 @@ function parseAttributes(
       props.push(attr)
     }
 
-    advanceSpaces(context) // Skip spaces.
+    advanceSpaces(context) // スペースは読み飛ばす
   }
 
   return props
@@ -500,7 +499,7 @@ type AttributeValue =
     }
   | undefined
 
-// Parsing a single attribute.
+// 属性一つのパース
 // eg. `id="app"`
 function parseAttribute(
   context: ParserContext,
@@ -539,9 +538,9 @@ function parseAttribute(
   }
 }
 
-// Parsing the value of an attribute.
-// This implementation allows values to be parsed whether they are single-quoted or double-quoted.
-// It simply extracts the value enclosed in quotes.
+// 属性のvalueをパース
+// valueのクォートはシングルでもダブルでもパースできるように実装しています。
+// これも頑張ってクォートで囲まれたvalueを取り出したりしているだけです。
 function parseAttributeValue(context: ParserContext): AttributeValue {
   const start = getCursor(context)
   let content: string
@@ -572,14 +571,14 @@ function parseAttributeValue(context: ParserContext): AttributeValue {
 }
 ```
 
-## After finishing the implementation of the parser
+## パーサの実装を終えて
 
-I have written a lot of code, more than usual. (It's only about 300 lines at most)
-I think it would be better to read the implementation here rather than explaining it in special words, so please read it repeatedly.
-Although I have written a lot, basically it is a straightforward task of advancing the analysis by reading the string, and there are no particularly difficult techniques.
+例になくたくさんコードを書いてきました。(せいぜい 300 行ちょっとですが)  
+ここの実装は特別言葉で説明するよりも読んだ方が理解が進むと思うので、何度か繰り返し読んでみてください。  
+たくさん書きましたが基本的には文字列を読み進めて解析を進めているだけで、特に難しいテクニックなどはない地道な作業です。
 
-By now, you should be able to generate an AST. Let's check if the parsing is working.
-However, since the codegen part has not been implemented yet, we will output it to the console for confirmation this time.
+ここまでで AST を生成できるようになっているはずです。パースができているか動作を確認してみましょう。
+とはいえ、codegen の部分をまだ実装できていないので、今回に関しては console に出力して確認してみます。
 
 ```ts
 const app = createApp({
@@ -611,7 +610,7 @@ app.mount('#app')
 
 ```ts
 export function baseCompile(template: string) {
-  const parseResult = baseParse(template.trim()) // Trim the template
+  const parseResult = baseParse(template.trim()) // templateはトリムしておく
   console.log(
     '🚀 ~ file: compile.ts:6 ~ baseCompile ~ parseResult:',
     parseResult,
@@ -624,18 +623,19 @@ export function baseCompile(template: string) {
 }
 ```
 
-The screen will not display anything, but let's check the console.
+画面は何も表示されなくなってしまいますが、コンソールを確認してみましょう。
 
 ![simple_template_compiler_complex_html](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/simple_template_compiler_complex_html.png)
 
-It seems that the parsing is going well.
-Now, let's proceed with the implementation of the codegen based on the generated AST.
+いい感じにパースができているようです。
+それではここで生成した AST を元に codegen の方の実装を進めていこうと思います。
 
-## Generating the render function based on the AST
 
-Now that we have implemented a full-fledged parser, let's create a code generator that can be applied to it.
-However, at this point, there is no need for a complex implementation.
-I will show you the code first.
+## AST を元に render 関数を生成する
+
+さて、本格的なパーサが実装できたところで次はそれに適応したコードジェネレータを作っていきます。  
+と言っても今の時点だと複雑な実装は必要ありません。  
+先にコードをお見せしてしまいます。
 
 ```ts
 import { ElementNode, NodeTypes, TemplateChildNode, TextNode } from './ast'
@@ -673,8 +673,8 @@ const genText = (text: TextNode): string => {
 }
 ```
 
-With the above code, you can create something that works.
-Uncomment the part that was commented out in the parser chapter and check the actual operation.
+以上で動くようなものは作れます。
+パーサの章でコメントアウトした部分を戻して、実際に動作を見てみましょう。
 `~/packages/compiler-core/compile.ts`
 
 ```ts
@@ -717,10 +717,9 @@ app.mount('#app')
 ```
 
 ![render_template](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/render_template.png)
+どうでしょうか。とってもいいっ感じに画面を描画できているようです。
 
-How about that? It seems that we can render the screen very nicely.
-
-Let's add some movement to the screen. Since we haven't implemented template binding, we will directly manipulate the DOM.
+せっかくなので画面に動きをつけてみます。テンプレートへのバインディングは実装していないので、直接 DOM 操作します。
 
 ```ts
 export type ComponentOptions = {
@@ -730,7 +729,7 @@ export type ComponentOptions = {
   setup?: (
     props: Record<string, any>,
     ctx: { emit: (event: string, ...args: any[]) => void },
-  ) => Function | void // Allow void as well
+  ) => Function | void // voidも許可する
   // .
   // .
   // .
@@ -742,7 +741,7 @@ import { createApp } from 'chibivue'
 
 const app = createApp({
   setup() {
-    // Delay the processing with Promise.resolve so that DOM operations can be performed after mounting
+    // マウント後に DOM 操作をしたいので Promise.resolve で処理を遅らせる
     Promise.resolve().then(() => {
       const btn = document.getElementById('btn')
       btn &&
@@ -780,8 +779,8 @@ const app = createApp({
 app.mount('#app')
 ```
 
-Let's make sure it is working correctly.
-How about that? Although the functionality is limited, it is getting closer to the usual Vue developer interface.
+これで正常に動作していることを確認します。  
+どうでしょう。機能は少ないにしろ、だんだんと普段の Vue の開発者インタフェースに近づいてきたのではないでしょうか。
 
-Source code up to this point:  
+ここまでのソースコード:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/060_template_compiler2)

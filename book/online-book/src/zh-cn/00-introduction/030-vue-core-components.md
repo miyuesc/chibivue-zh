@@ -1,77 +1,96 @@
-# Key Elements that Constitute Vue.js
+# Vue.js を構成する主要な要素
 
-## Vue.js Repository
+## Vue.js のリポジトリ
 
-Vue.js can be found in this repository:  
+Vue.js はこのリポジトリにあります。  
 https://github.com/vuejs/core
 
-Interestingly, this is the repository for v3. For v2 and earlier versions, you can find it in another repository:  
+実はこれは 3.x 系のリポジトリで、2.x 以前はまた別のリポジトリにあります。  
 https://github.com/vuejs/vue
 
-For the sake of this discussion, we will be focusing on the core repository (v3).
+前提として、今回は core リポジトリ(3.x 系)を使って説明していきます。
 
-## Main Elements that Make Up Vue.js
+## Vue.js を構成する主要な要素
 
-Let's first get a holistic understanding of Vue.js's implementation. There is a markdown file about contributions in the Vue.js repository;  
-if you're interested, you can check it out to get insights about its architecture. (Though, it's fine if you skip it.)
+さて、まずは Vue.js の実装の全体像から把握してみましょう。
+Vue.js のリポジトリにコントリビュートに関するマークダウンファイルがあるので、余力がある方はそこをみてみると構成についても色々書いてます。(まあみなくてもいいです)
 
 https://github.com/vuejs/core/blob/main/.github/contributing.md
 
-In broad strokes, Vue.js comprises the following major components:
+ざっくり説明すると、Vue.js は以下のような主要な要素があります。
 
-## Runtime
+## runtime
 
-The runtime encompasses everything that affects the actual operation - from rendering to component state management. This refers to the entirety of a Vue.js-developed web application that operates on a browser or a server (in the case of SSR). Specifically, it includes:
-
-### Component System
-
-Vue.js is a component-oriented framework. Depending on the user's requirements, you can maintainably create and encapsulate components for reuse. It also offers functionalities like state sharing between components (props/emits or provide/inject) and lifecycle hooks.
+ランタイムとは実際の動作に影響する部分全般です。レンダリングであったり、コンポーネントのステート管理であったり。  
+Vue.js で開発した Web アプリケーションのうち、ブラウザ上やサーバー上(SSR の場合)で動作している部分全般のことです。  
+具体的には以下の要素を含んでます。(それぞれの詳しい説明は各チャプターでやるのでざっくり)
 
 ### Reactivity System
 
-It tracks the state held by components and updates the screen when changes occur. This monitoring and responding mechanism is called reactivity.
+「リアクティビティ」は日本語で言うと「反応性」です。
+コンポーネントでもつステートを追跡し、変更があった場合に画面の更新をしたりします。
+この、追跡して反応して何かを行うことを反応性と呼んでいます。
 
 ```ts
-import { ref } from 'vue'
+import { ref } from "vue";
 
-const count = ref(0)
+const count = ref(0);
 
-// When this function is executed, the screen displaying the count will also update
+// この関数が実行されるとcountを表示していた画面も更新される
 const increment = () => {
-  count.value++
-}
+  count.value++;
+};
 ```
 
-(It's fascinating how the screen updates just by changing a value, right?)
+### Virtual DOM
 
-### Virtual DOM System
+Virtual DOM (仮想 DOM) もまた、Vue.js の強力なシステムの一つです。
+Virtual DOM は JS のランタイム上に DOM を模倣した JavaScript のオブジェクトを定義し、それを現在の DOM と見立て、更新時は現在の Virtual DOM と新しい Virtual DOM とを比較して差分のみを本物の DOM に反映する仕組みです。詳しくは専用のチャプターで詳しく解説します。
 
-The Virtual DOM system is another one of Vue.js's potent mechanisms. It defines a JavaScript object imitating the DOM on JS's runtime. When updating, it compares the current Virtual DOM to a new one and reflects only the differences to the real DOM. We'll delve deeper into this in a dedicated chapter.
+### Component
+
+Vue.js はコンポーネント指向なフレームワークです。
+それぞれのユーザーの要件に応じて保守性の高いコンポーネントを作ってカプセル化・再利用を行うことができます。
+また、コンポーネント間でのステートの共有(props/emits や provide/inject など)であったり、ライフサイクルフックの提供を行ったりしています。
+
+(よくよく考えると、値を変更しているだけなのにちゃんと画面が更新されているのは不思議ですよね。)
 
 ## Compiler
 
-The compiler is responsible for converting the developer interface to the internal implementation. By "developer interface," we mean the boundary between "developers using Vue.js for web application development" and "Vue's internal operations." Essentially, when you write using Vue.js, there are parts that are clearly not pure JavaScript – like template directives or Single File Components. Vue.js provides these syntaxes and converts them to pure JavaScript. This feature is only used during the development stage and isn't part of the actual operational web application (it merely compiles to JavaScript code).
+コンパイラとは開発者インタフェースと内部実装の変換を担う部分です。  
+ここでいう「開発者インタフェース」とは、「実際に Vue.js を使用して Web アプリケーション開発を行う開発者」と「Vue の内部実装」の境界のことです。  
+具体的には、普段皆さんが書いている Vue を使った実装を想像してもらって、それを内部で扱うための方に変換をする機能が Vue.js に存在していると思ってもらえれば大丈夫です。
 
-The compiler has two main sections:
+Vue.js で開発をしていると、明らかに JavaScript の記述ではない部分があると思います。テンプレートのディレクティブであったり、Single File Component であったり。  
+これらの記法(文法)は Vue.js が提供しているもので、これを JavaScript のみ記述に変換する機能があるのです。
+そしてこの機能はあくまで開発段階で使われるもので Web アプリケーションとして実際の動作にしている部分ではありません。(JavaScript コードにコンパイルする役目のみを果たします。)
 
-### Template Compiler
+このコンパイラも大きく二つのセクションに別れています。
 
-As the name suggests, this is the compiler for the template part. Specifically, it handles directives like v-if or v-on, user component notations (like <Counter />), and functionalities like slots.
+### Template Compiler (compiler core)
+
+名前の通りテンプレート部分のコンパイラです。
+具体的には v-if や v-on といったディレクティブの記法や、ユーザーコンポーネントの記述(`<Counter />`みたいなオリジナルのタグとして書くやつ)や slot の機能などです。
 
 ### SFC Compiler
 
-As you might guess, this stands for Single File Component compiler. It allows you to define a component's template, script, and style within a single .vue file. Functions used in script setup like defineComponent or defineProps are also provided by this compiler. And this SFC compiler is often used in conjunction with tools like Webpack or Vite. The implementation as a plugin for other tools doesn't reside in the core repository. The main functionality of the SFC compiler is in the core, but the plugins are implemented in different repositories.
-(Reference: [vitejs/vite-plugin-vue](https://github.com/vitejs/vite-plugin-vue))
+名前の通り Single File Component のコンパイラです。
+.vue という拡張子のファイルで、コンポーネントの template, script, style を単一のファイルで記述する機能です。
+script setup で使用する defineComponent や defineProps などもこのコンパイラが提供しています。(これは後述)
 
-By the way, we will be implementing an actual Vite plugin to operate our custom SFC compiler.
+そして、この SFC コンパイラですが、実際には Webpack や Vite などのツールと組み合わされて使用されます。
+他のツールのプラグインとしての実装部分ですが、ここは core リポジトリには存在していません。core に存在するのは SFC コンパイラの主要な機能で、プラグインはプラグインで別のリポジトリに実装されています。(参考: [vitejs/vite-plugin-vue](https://github.com/vitejs/vite-plugin-vue))
 
-## Peeking into the vuejs/core Directory
+ちなみに今回の実装では実際に Vite のプラグインを実装して自作 SFC コンパイラを動作させます。
 
-Now that we have a rough understanding of Vue's major elements, let's see how the actual source code looks (although we're just discussing directories). The primary source code is stored in the "packages" directory.
+## vuejs/core のディレクトリを覗いてみる
+
+Vue の主要な要素をざっと把握したところで実際のソースコードがどのような感じになっているか見てみましょう(といってもディレクトリだけだけど)
+packages というディレクトリにメインのソースコードが詰まっています。
 
 https://github.com/vuejs/core/tree/main/packages
 
-Some of the key directories to focus on are:
+中でも注目したいのは、
 
 - compiler-core
 - compiler-dom
@@ -81,7 +100,8 @@ Some of the key directories to focus on are:
 - runtime-dom
 - vue
 
-For understanding their interdependencies, the diagram in the contribution guide is particularly insightful.
+です。
+それぞれの依存関係についてはコントリビュートガイドのこの図がとてもわかりやすいです。
 
 ```mermaid
   flowchart LR
@@ -112,4 +132,4 @@ For understanding their interdependencies, the diagram in the contribution guide
 https://github.com/vuejs/core/blob/main/.github/contributing.md#package-dependencies
 
 <br/>
-In this book, we will provide implementation and explanation for all of these topics.
+この本では一通りこれらについての実装と解説を行います。
