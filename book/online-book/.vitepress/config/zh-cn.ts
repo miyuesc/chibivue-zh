@@ -3,26 +3,26 @@ import { DefaultTheme, LocaleSpecificConfig } from 'vitepress'
 export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
   themeConfig: {
     nav: [
-      { text: '主页', link: '/zh-cn/' },
-      { text: '开始学习', link: '/zh-cn/00-introduction/010-about' },
+      { text: '主页', link: '/' },
+      { text: '开始学习', link: '/00-introduction/010-about' },
     ],
     sidebar: [
       {
         text: '入门',
         collapsed: false,
         items: [
-          { text: '开篇', link: '/zh-cn/00-introduction/010-about' },
+          { text: '开篇', link: '/00-introduction/010-about' },
           {
             text: 'Vue.js 是什么?',
-            link: '/zh-cn/00-introduction/020-what-is-vue',
+            link: '/00-introduction/020-what-is-vue',
           },
           {
             text: 'Vue.js 的关键组成部分',
-            link: '/zh-cn/00-introduction/030-vue-core-components',
+            link: '/00-introduction/030-vue-core-components',
           },
           {
             text: '如何继续阅读本书并搭建环境',
-            link: '/zh-cn/00-introduction/040-setup-project',
+            link: '/00-introduction/040-setup-project',
           },
         ],
       },
@@ -32,43 +32,43 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         items: [
           {
             text: '首次渲染和 createApp API',
-            link: '/zh-cn/10-minimum-example/010-create-app-api',
+            link: '/10-minimum-example/010-create-app-api',
           },
           {
             text: '实现 HTML 元素的渲染',
-            link: '/zh-cn/10-minimum-example/020-simple-h-function',
+            link: '/10-minimum-example/020-simple-h-function',
           },
           {
             text: '一个轻量的响应式系统',
-            link: '/zh-cn/10-minimum-example/030-minimum-reactive',
+            link: '/10-minimum-example/030-minimum-reactive',
           },
           {
             text: '简化的虚拟 DOM',
-            link: '/zh-cn/10-minimum-example/040-minimum-virtual-dom',
+            link: '/10-minimum-example/040-minimum-virtual-dom',
           },
           {
             text: '如何面向组件化开发',
-            link: '/zh-cn/10-minimum-example/050-minimum-component',
+            link: '/10-minimum-example/050-minimum-component',
           },
           {
             text: '简易的模板编译器',
-            link: '/zh-cn/10-minimum-example/060-minimum-template-compiler',
+            link: '/10-minimum-example/060-minimum-template-compiler',
           },
           {
             text: '如何处理更加复杂的 HTML 模板',
-            link: '/zh-cn/10-minimum-example/070-more-complex-parser',
+            link: '/10-minimum-example/070-more-complex-parser',
           },
           {
             text: '数据绑定',
-            link: '/zh-cn/10-minimum-example/080-template-binding',
+            link: '/10-minimum-example/080-template-binding',
           },
           {
             text: '希望用 SFC(单文件组件) 开发',
-            link: '/zh-cn/10-minimum-example/090-minimum-sfc',
+            link: '/10-minimum-example/090-minimum-sfc',
           },
           {
             text: '小节',
-            link: '/zh-cn/10-minimum-example/100-break',
+            link: '/10-minimum-example/100-break',
           },
         ],
       },
@@ -78,19 +78,19 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         items: [
           {
             text: 'key 属性和补丁渲染（Path Rendering）',
-            link: '/zh-cn/20-basic-virtual-dom/010-patch-keyed-children',
+            link: '/20-basic-virtual-dom/010-patch-keyed-children',
           },
           {
             text: 'VNodes 类型的位级表示',
-            link: '/zh-cn/20-basic-virtual-dom/020-bit-flags',
+            link: '/20-basic-virtual-dom/020-bit-flags',
           },
           {
             text: 'Scheduler 调度程序',
-            link: '/zh-cn/20-basic-virtual-dom/030-scheduler',
+            link: '/20-basic-virtual-dom/030-scheduler',
           },
           {
             text: '🚧 不支持的 Props',
-            link: '/zh-cn/20-basic-virtual-dom/040-patch-other-attrs',
+            link: '/20-basic-virtual-dom/040-patch-other-attrs',
           },
         ],
       },
@@ -100,23 +100,23 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         items: [
           {
             text: 'ref API',
-            link: '/zh-cn/30-basic-reactivity-system/010-ref-api',
+            link: '/30-basic-reactivity-system/010-ref-api',
           },
           {
             text: 'computed / watch API',
-            link: '/zh-cn/30-basic-reactivity-system/020-computed-watch',
+            link: '/30-basic-reactivity-system/020-computed-watch',
           },
           {
             text: '各个响应式代理处理程序',
-            link: '/zh-cn/30-basic-reactivity-system/030-reactive-proxy-handlers',
+            link: '/30-basic-reactivity-system/030-reactive-proxy-handlers',
           },
           {
             text: 'Effect 副作用清理和作用域',
-            link: '/zh-cn/30-basic-reactivity-system/040-effect-scope',
+            link: '/30-basic-reactivity-system/040-effect-scope',
           },
           {
             text: '其他的响应式 API',
-            link: '/zh-cn/30-basic-reactivity-system/050-other-apis',
+            link: '/30-basic-reactivity-system/050-other-apis',
           },
         ],
       },
@@ -126,23 +126,23 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         items: [
           {
             text: '生命周期钩子函数',
-            link: '/zh-cn/40-basic-component-system/010-lifecycle-hooks',
+            link: '/40-basic-component-system/010-lifecycle-hooks',
           },
           {
             text: 'Provide/Inject 变量注入',
-            link: '/zh-cn/40-basic-component-system/020-provide-inject',
+            link: '/40-basic-component-system/020-provide-inject',
           },
           {
             text: '组件代理和组件实例上下文',
-            link: '/zh-cn/40-basic-component-system/030-component-proxy-setup-context',
+            link: '/40-basic-component-system/030-component-proxy-setup-context',
           },
           {
             text: '插槽',
-            link: '/zh-cn/40-basic-component-system/040-component-slot',
+            link: '/40-basic-component-system/040-component-slot',
           },
           {
             text: '选项式 API 支持',
-            link: '/zh-cn/40-basic-component-system/050-options-api',
+            link: '/40-basic-component-system/050-options-api',
           },
         ],
       },

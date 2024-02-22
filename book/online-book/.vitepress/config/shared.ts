@@ -3,8 +3,7 @@ import { defineConfig } from 'vitepress'
 export const sharedConfig = defineConfig({
   title: 'The chibivue Book',
   appearance: 'dark',
-  description:
-    'Writing Vue.js: Step by Step, from just one line of "Hello, World".',
+  description: '一步一步，从一行 "Hello, World" 开始创建 Vue.js',
   lang: 'zh-cn',
   srcDir: 'src',
   srcExclude: ['__wip'],
@@ -17,17 +16,20 @@ export const sharedConfig = defineConfig({
       },
     ],
 
-    // og
-    ['meta', { property: 'og:site_name', content: 'chibivue' }],
-    [
-      'meta',
-      { property: 'og:url', content: 'https://ubugeeei.github.io/chibivue' },
-    ],
-    ['meta', { property: 'og:title', content: 'chibivue' }],
+    // source og
+    ['meta', { property: 'source_og:site_name', content: 'chibivue' }],
     [
       'meta',
       {
-        property: 'og:description',
+        property: 'source_og:url',
+        content: 'https://ubugeeei.github.io/chibivue',
+      },
+    ],
+    ['meta', { property: 'source_og:title', content: 'chibivue' }],
+    [
+      'meta',
+      {
+        property: 'source_og:description',
         content:
           'Writing Vue.js: Step by Step, from just one line of "Hello, World".',
       },
@@ -35,15 +37,12 @@ export const sharedConfig = defineConfig({
     [
       'meta',
       {
-        property: 'og:image',
+        property: 'source_og:image',
         content:
           'https://github.com/Ubugeeei/chibivue/blob/main/book/images/logo/chibivue-img.png?raw=true',
       },
     ],
-    ['meta', { property: 'og:image:alt', content: 'chibivue' }],
-    ['meta', { name: 'twitter:site', content: 'chibivue' }],
-    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-    ['meta', { name: 'twitter:title', content: 'chibivue' }],
+    ['meta', { property: 'source_og:image:alt', content: 'chibivue' }],
     [
       'meta',
       {
@@ -52,15 +51,19 @@ export const sharedConfig = defineConfig({
           'Writing Vue.js: Step by Step, from just one line of "Hello, World".',
       },
     ],
+
+    // translator og
+    [
+      'meta',
+      { property: 'og:url', content: 'https://miyuesc.github.io/chibivue' },
+    ],
     [
       'meta',
       {
-        name: 'twitter:image',
-        content:
-          'https://github.com/Ubugeeei/chibivue/blob/main/book/images/logo/chibivue-img.png?raw=true',
+        property: 'og:description',
+        content: '一步一步，从一行 "Hello, World" 开始创建 Vue.js',
       },
     ],
-    ['meta', { name: 'twitter:image:alt', content: 'chibivue' }],
   ],
   themeConfig: {
     logo: 'https://github.com/Ubugeeei/chibivue/blob/main/book/images/logo/logo.png?raw=true',
@@ -73,12 +76,12 @@ export const sharedConfig = defineConfig({
     ],
     editLink: {
       pattern:
-        'https://github.com/Ubugeeei/chibivue/blob/main/book/online-book/src/:path',
-      text: 'Suggest changes to this page',
+        'https://github.com/miyuesc/chibivue-zh/blob/main/book/online-book/src/:path',
+      text: '修改此页面',
     },
     footer: {
-      copyright: `Copyright © 2023-${new Date().getFullYear()} ubugeeei`,
-      message: 'Released under the MIT License.',
+      copyright: `Copyright © 2023-${new Date().getFullYear()} miyuesc`,
+      message: 'Released under the MIT License. Source is ubugeeei/chibivue',
     },
   },
 })

@@ -1,73 +1,83 @@
-# 本書の進め方と環境構築
+# 如何继续阅读本书并搭建环境
 
-## 本書の進め方
+## 如何继续阅读这本书
 
-これから早速 Vue.js の実装を小さく行なっていきます。  
-それに伴う心構えや注意点、その他知っておくべき情報を以下に列挙します。
+从现在开始，我们将最简单的实现一个 Vue.js。
 
-- プロジェクト名は chibivue とします。  
-  本書で実装する Vue.js の基本実装をまとめて chibivue と呼ぶことにします。
-- 基本方針は最初に話した通り、「小さい開発を繰り返す」です。
-- この本の付録として各フェーズのソースコードを https://github.com/Ubugeeei/chibivue/tree/main/book/impls に載せてあります。  
-  この本では具体的な説明を全てのソースコードに対して行うわけではないので、その辺りは随時こちらを参照していただければと思います。
-- 完成系のコードはいくつかのパッケージに依存しています。  
-  これは自作系のコンテンツにありがちな問題なのですが、「どこからどこまで自分の手で実装すれば自作と言えるのだろう」という議論がしばしば挙げられます。  
-  例によってこの本も全てのソースコードを手で書くわけではありません。  
-  今回は Vue.js 本家のコードが使っているようなパッケージは積極的に使っていきます。例えば、Babel がその一つです。  
-  しかし安心してもらいたいのは、今回の本では前程知識を必要としないことを目指しているので必要になったパッケージについて必要最低限説明を加えます。
+怀着这个心情和目标，我们需要注意以下几点：
 
-## 環境構築
+- 项目名称是 chibivue。本书中对 Vue.js 的实现内容统称为 chibivue
+- 正如之前提到的，我们的核心还是“最简化开始并重复（持续）开发”
+- 每个阶段的源代码都包含在本书的附录中，可以在 https://github.com/Ubugeeei/chibivue/tree/main/book/impls 中找到。
 
-さて、早速ですが環境構築からやっていきましょう！
-一応先に今回構築する環境の内容を列挙しておきます
+  书中所有源代码我们不会提供详细解释，请根据需要参考附录。
+- 完整的代码依赖于官方仓库有多少个包。
 
-- ランタイム: Node.js 18.x
-- 言語: TypeScript
-- パッケージマネージャ: pnpm 8.x
-- バンドラ: Vite 3.x
+  这也是实现一个自定义库时最常遇到的问题，就是“我需要从哪里开始实现它？我要做到哪种程度才能说明这是一个自定义的库？”
+  
+  和往常一样，本书中的所有代码也不是完全由自己重新编写的。
+  
+  这次我会积极使用 Vue.js 源代码所依赖的相关库，例如 Babel 就是其依赖之一。
+  
+  当然，你也不用过于担心。本书并不需要你拥有非常丰厚的基础知识，我也只会实现必要的一些包和内容，并尽量简化且详细的给出代码解释。
 
-## Node.js インストール
+## 环境搭建
 
-おそらくここは大丈夫でしょう。各自で用意してください。
-説明については省略します。
+现在，让我们开始搭建代码环境吧！
 
-## pnpm のインストール
+首先我列出一下我们这次要搭建的环境的内容。
 
-もしかすると普段は npm や yarn を使っている方が多いかもしれません。  
-今回は pnpm を使っていくので、こちらの方も合わせてインストールしてください。  
-基本的なコマンドは npm とほとんど一緒です。  
+- 运行时: Node.js 18.x
+- 开发语言: TypeScript
+- 包管理器: pnpm 8.x
+- 构建工具: Vite 3.x
+
+## Node.js 安装
+
+这部分我相信大家应该都没有问题吧。所以我省略掉了这部分内容。
+
+## pnpm 安装
+
+也许平时大家都是使用的 npm 或者 yarn 来进行依赖管理。
+
+但是今天我们需要使用 pnpm，所以请大家也要进行 pnpm 的安装。
+
+它的基本使用命令与 npm 几乎一致。
+
 https://pnpm.io/installation
 
-また、本書では上記に加え、パッケージマネージャのマネージャ(?) である [ni](https://github.com/antfu/ni) を使っています。  
-(Vue.js core team の [antfu](https://github.com/antfu) さんが作っています。)
+除了上述内容之外，本书还使用了 [ni](https://github.com/antfu/ni)（一个轻量的包管理器，由 Vue.js 核心团队成员 [antfu](https://github.com/antfu) 开发）。
 
-こちらのセットアップがまだな方はこちらも合わせてインストールしてください。
+如果您没有安装过这个包，也请安装。
 
 ```sh
 $ npm i -g @antfu/ni
 ```
 
-ni は様々なパッケージマネージャを自動で使い分けてくれる便利ツールです。  
+ni 是可以自动区分当前使用的包管理器的便利工具。
 
-こちらは実は本家の Vue.js の開発でも使われています。
+实际上这也是 Vue.js 源码贡献指南中要求使用的一个工具。
+
 https://github.com/vuejs/core/blob/main/.github/contributing.md#scripts
 
-パッケージのインストールや開発サーバーの起動などは ni のコマンドを使っていきます。
+后面，我们将使用 ni 命令来安装依赖和启动开发服务。
 
-## プロジェクトの作成
+## 创建一个项目
 
-::: details 手っ取り早くスタートしたい ...
-これから、手動でプロジェクトを作成する手順を説明するのですが、実は構築用のツールも用意しています。  
-面倒くさい方は是非こちらを使ってください！
+::: details 我想尽快开始 ...
+接下来的内容，是说明手动创建项目的步骤，实际上我们也准备了构建新项目的工具。
 
-1. chibivue をクローンする
+如果您觉得手动创建麻烦的话，可以使用这个工具。
+
+1. 克隆 chibivue
 
    ```sh
    $ git clone https://github.com/Ubugeeei/chibivue
    ```
 
-2. script を実行.  
-   セットアップしたいディレクトリのパスを入力してください.
+2. 运行脚本.  
+
+  请输入您要设置的目录的路径。
 
    ```sh
    $ cd chibivue
@@ -76,12 +86,11 @@ https://github.com/vuejs/core/blob/main/.github/contributing.md#scripts
 
 :::
 
-任意のディレクトリでプロジェクトを作成します。
-ここからは便宜上プロジェクトのルートパスを`~`と表現します。(例: `~/src/main.ts`など)
+您可以在任意目录下创建该项目，但是为了方便和统一，从现在开始，项目的根路径会通过 `~` 表示（例如 `~/src/main.ts` 等）。
 
-今回は、chibivue の本体と動作を確認するためのプレイグラウンドを分けて実装してみます。
-といってもプレイグラウンド側で chibivue を呼び出して vite でバンドルするだけです。
-このような構成にする想定です。
+这次，我将 chibivue 的主体内容和实际运行效果演示进行了拆分。
+而你在使用 chibivue 时，只需要在 examples 一侧引入 chibivue 并将其和 vite 结合起来。
+假设配置如下：
 
 ```
 
@@ -94,15 +103,15 @@ https://github.com/vuejs/core/blob/main/.github/contributing.md#scripts
 
 ```
 
-examples というディレクトリにプレイグラウンドを実装します。
-packages に chibivue 本体の TypeScript ファイル群を実装して、example 側からそれを import する形にします。
+在根路径下我们创建了一个 examples 目录，然后在该目录中通过 playground 来创建项目进行预览。
+packages 目录中则是 chibivue 的主体内容，包含相关的 TypeScript 文件。你可以在示例项目中通过 import 进行引用。
 
-以下はそれを構築する手順です。
+以下是它的构建步骤。
 
-### プロジェクト本体の構築
+### 搭建项目主体
 
 ```sh
-## 実際はchibivue用のディレクトリを作って移動してください (以下、同様の注釈は省略します。)
+## 请专门为 chibivue 创建一个目录并导航到其中。（此后将省略此类注释。）
 pwd # ~/
 pnpm init
 ni -D @types/node
@@ -111,7 +120,7 @@ touch packages/index.ts
 touch tsconfig.json
 ```
 
-tsconfig.json の内容
+tsconfig.json 的内容
 
 ```json
 {
@@ -132,7 +141,7 @@ tsconfig.json の内容
 }
 ```
 
-packages/index.ts の内容
+packages/index.ts 的内容
 
 ```ts
 export const helloChibivue = () => {
@@ -140,7 +149,7 @@ export const helloChibivue = () => {
 };
 ```
 
-### プレイグラウンド側の構築
+### 搭建示例项目
 
 ```sh
 pwd # ~/
@@ -148,24 +157,25 @@ mkdir examples
 cd examples
 nlx create-vite
 
-## --------- create vite cliの設定
+## --------- create vite cli 的基础设置
 ## Project name: playground
 ## Select a framework: Vanilla
 ## Select a variant: TypeScript
 ```
 
-vite で作成したプロジェクトのうち、不要なものを削除します。
+删除 Vite Cli 创建的多余的文件和目录
 
 ```sh
 pwd # ~/examples/playground
 rm -rf public
-rm -rf src # 不要なファイルがあるので一旦作り直します。
+rm -rf src # 因为需要使用我们自己编写的内容，所以这部分就不需要了。
 mkdir src
 touch src/main.ts
 ```
 
-src/main.ts の中身
-※ 一旦 from の後ろのエラーが出ますがこれから設定するので問題ありません。
+src/main.ts 的内容
+
+※ 一旦我们修改了 form 后面的内容（将 vue 修改为 chibivue），就会出现错误。但是问题不大，我们现在开始着手解决它。
 
 ```ts
 import { helloChibivue } from "chibivue";
@@ -173,7 +183,7 @@ import { helloChibivue } from "chibivue";
 helloChibivue();
 ```
 
-index.html を以下のように書き換えます。
+将 index.html 的替换为下面的内容。
 
 ```html
 <!DOCTYPE html>
@@ -191,14 +201,14 @@ index.html を以下のように書き換えます。
 </html>
 ```
 
-Vite で作成したプロジェクトで chibivue で実装したものを import できるようにエイリアスの設定をします。
+然后，我们还需要创建 Vite 对应的配置文件并设置别名，以便后面直接使用 chibivue 的内容。
 
 ```sh
 pwd # ~/examples/playground
 touch vite.config.js
 ```
 
-vite.config.ts の内容
+vite.config.ts 的内容
 
 ```ts
 import path from 'node:path'
@@ -215,7 +225,7 @@ export default defineConfig({
 })
 ```
 
-tsconfig.json の中身を以下のように書き換えます。
+当然，这时还需要更新 tsconfig.json 中的内容。
 
 ```json
 {
@@ -249,9 +259,9 @@ tsconfig.json の中身を以下のように書き換えます。
 }
 ```
 
-最後に、chibivue プロジェクトの package.json に playground を起動するコマンドを記述して実際に起動してみましよう！
+最后，我们可以在 chibivue 项目的根路径下的 package.json 中编写启动 playground 的命令并启动这个示例项目。
 
-~/package.json に以下を追記
+~/package.json 需要添加的内容
 
 ```json
 {
@@ -266,9 +276,10 @@ pwd # ~
 nr dev
 ```
 
-このコマンドで立ち上がった開発者サーバーにアクセスし、メッセージが表示されていれば完了です！
+访问使用此命令启动的开发者服务地址，如果显示下面的消息，则表示我们已经将示例项目配置完成了！
+
 
 ![hello chibivue](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/hello_chibivue.png)
 
-ここまでのソースコード:  
+到目前为止的所有的源代码:
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/00_introduction/010_project_setup)
