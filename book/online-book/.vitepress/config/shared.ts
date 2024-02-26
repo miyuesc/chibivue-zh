@@ -77,9 +77,9 @@ export const sharedConfig = defineConfig({
 </svg>`,
         },
         ariaLabel: 'Star this repo',
-        link: 'https://github.com/miyuesc/chibivue-zh',
+        link: 'https://github.com/Ubugeeei/chibivue',
       },
-      { icon: 'github', link: 'https://github.com/Ubugeeei/chibivue' },
+      { icon: 'github', link: 'https://github.com/miyuesc/chibivue-zh' },
       { icon: 'discord', link: 'https://discord.gg/aVHvmbmSRy' },
     ],
     editLink: {
