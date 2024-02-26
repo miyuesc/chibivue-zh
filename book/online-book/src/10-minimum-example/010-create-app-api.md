@@ -76,22 +76,22 @@ app.mount('#app')
 答案肯定是第三种“使用 render 选项与 h 渲染函数”。
 第一种方式需要实现 SFC 编译器和数据绑定，第二种方式需要将 template 模板选项（HTML 字符串）进行转换成 JS 代码，不然的话也是无法工作的。
 
-ここでは便宜上、生の JS に近ければ近いほど「`低級な開発者インタフェース`」と呼ぶことにします。  
-そして、ここで重要なのが、「実装を始めるときは低級なところから実装していく」ということです。  
-それはなぜかというと、多くの場合、高級な記述は低級な記述に変換されて動いているからです。  
-つまり、1 も 2 も最終的には内部的に 3 の形に変換しているのです。  
-その変換の実装のことを「コンパイラ (翻訳機)」と呼んでいます。
+为图简便，我将其称为“**低级开发者接口**”，因为它更加接近于原生的 JS。
+当然这也是最重要的一部分，需要“从最基础的低级接口的实现开始”。
+因为在很多情况下，高级语法都需要被转化成低级语法。
+也就是说，1 和 2 最终也会被转换成 3 的形式，这部分转化功能，被称为 **编译器**。
 
-ということで、まずは 3 のような開発者インタフェースを目指して実装していきましょう!
+那么现在，就让我们从实现 3 这样的低级开发者接口开始吧
 
-## createApp API とレンダリング
+## createApp API 和元素渲染
 
-## 方針
+## 方法
 
-3 の形を目指すとはいったもののまだ h 関数についてはよく分かっていないですし、なんといってもこの本はインクリメンタルな開発を目指しているので、  
-いきなり 3 の形を目指すのはやめて、以下のような形で render 関数ではメッセージを return してそれを表示するだけの実装をしてみましょう。
+虽然是以第三种形式做为目标，但是目前我们关于 h 函数具体是怎么实现的还是不清楚。
+不过这本书的目标就是 **增量开发**，一步一步的完善。
+所以，我们在这里先不要追求完成的实现 3 的接口，而是尝试实现下面这样的简化形式，将 render 函数返回一个字符串然后我们在页面上将其显示出来。
 
-イメージ ↓
+例如 ↓
 
 ```ts
 import { createApp } from 'vue'
@@ -105,10 +105,11 @@ const app = createApp({
 app.mount('#app')
 ```
 
-## 早速実装
+## 快速实现
 
-`~/packages/index.ts`に createApp 関数を作ってみましょう。
-※ helloChibivue は不要なので消してしまいます。
+首先在 `~/packages/index.ts` 中创建一个 `createApp` 方法。
+
+※ helloChibivue 现在就不需要了，我们直接把它删除掉。
 
 ```ts
 export type Options = {
@@ -131,7 +132,8 @@ export const createApp = (options: Options): App => {
 }
 ```
 
-とても簡単ですね。playground の方で試してみましょう。
+这是不是很简单。
+现在，让我们切换到 playground 去体验一下吧。
 
 `~/examples/playground/src/main.ts`
 
@@ -147,40 +149,47 @@ const app = createApp({
 app.mount('#app')
 ```
 
-画面にメッセージを表示することができました! やったね!
+nice！ 现在我们就能在网页上显示一条消息了。
 
 ![hello_createApp](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/hello_createApp.png)
 
-ここまでのソースコード:  
+当前的源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/010_create_app)
 
-## リファクタリング
+## 重构
 
-「え？まだこれだけしか実装していないのにリファクタするの？」と思うかもしれませんが、この本の目的の一つに「Vue.js のソースコードを読めるようになる」というものがありました。  
-それに伴って、ファイルやディレクトリ構成も Vue.js の形を常に意識したいわけです。  
-なので、少しばかりリファクタさせてください。。。
+也许你可能会疑惑“什么？已经实现了还需要重构它吗？”。但是毕竟本书的目的是为了让大家能够理解 Vue.js 的源码。
+所以，除了实现基础功能之外，您也应该了解 Vue.js 的目录结构和文件组成。
 
-### Vue.js の設計
+所以，我们这里需要稍微重构以下
 
-#### runtime-core と runtime-dom
+### Vue.js 的设计思路
 
-ここで少し Vue.js 本家の構成についての説明です。  
-今回のリファクタでは `runtime-core` というディレクトリと `runtime-dom` というディレクトリを作ります。
+#### runtime-core 与 runtime-dom
 
-それぞれなんなのかというと、runtime-core というのは、Vue.js のランタイム機能のうち本当にコアになる機能が詰まっています。  
-と言われても何がコアで何がコアじゃないのか今の段階だとわかりづらいと思います。
+这里稍微解释一下 Vue.js 的源码的基本组成部分。
+在这次重构中，我们将创建一个名为 `runtime-core` 的目录和一个名为 `runtime-dom` 的目录。
 
-なので、runtime-dom との関係を見てみるとわかりやすいかなと思います。  
-runtime-dom というのは名前の通り、DOM に依存した実装を置くディレクトリです。ざっくり「ブラウザに依存した処理」という理解をしてもらえれば問題ないです。  
-例を挙げると querySelector や createElement などの DOM 操作が含まれます。
+其中，`runtime-core` 包含了 Vue.js 的核心的运行时部分。
 
-runtime-core ではそういった処理は書かず、あくまで純粋な TypeScript の世界の中で Vue.js のランタイムに関するコアロジックを記述するような設計になっています。  
-例を挙げると、 Virtual DOM に関する実装であったり、コンポーネントに関する実装だったりです。  
-まあ、この辺りに関しては chibivue の開発が進むにつれて明確になってくると思うのでわからなかったらとりあえず本の通りにリファクタしてもらえれば問題ありません。
+当然，即使这么说估计大家现在也很难理解，哪些才是核心部分，哪些又不是呢？
 
-#### 各ファイルの役割と依存関係
+所以，如果我们看一下它和 runtime-dom 之间的关系，应该就更好理解了。
 
-これから runtime-core と runtime-dom にいくつかファイルを作ります。必要なファイルは以下のとおりです。
+runtime-dom，顾名思义，是一个依赖 DOM 提供的 API 来实现的内容。可以简单理解为：内部的代码运行都需要依赖浏览器环境。
+例如 `querySelector` 和 `createElement` 这样的 DOM 操作。
+
+在 runtime-core 中并没有与 DOM 相关的操作，它的定位是通过纯粹的 TypeScript 语法来实现与 Vue.js 运行时相关的核心逻辑。
+例如虚拟 DOM 和组件系统的实现。
+
+当然，我想随着 chibivue 的不断更新和完善，大家对这部分内容的理解会更加的清晰。
+所以，如果您现在还不是很理解这部分内容，那就继续跟着我一起完善下去就好了。
+
+#### 内部各文件的作用和依赖关系
+
+现在我们需要在 runtime-core 和 runtime-dom 中创建一些文件。
+
+所需文件如下：
 
 ```sh
 pwd # ~
@@ -199,18 +208,19 @@ touch packages/runtime-dom/index.ts
 touch packages/runtime-dom/nodeOps.ts
 ```
 
-これらの役割についてですが、最初から文章で説明してもわかりづらいかと思いますので以下の図を見てください。
+对于这些文件所扮演的角色以及它们之间的依赖关系，我觉得用文字是很难解释的，所以我画了一张图：
 
 ![refactor_createApp!](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/refactor_createApp.png)
 
-#### renderer の設計
+#### renderer 渲染器的设计
 
-先ほども話したとおり、Vue.js では DOM に依存する部分と純粋な Vue.js のコア機能部分を分離しています。
-まず、注目して欲しいのは`runtime-core`の方の renderer factory と `runtime-dom`の nodeOps です。
-先ほど実装した例だと、createApp が返す app の mount メソッドで直接レンダリングをしていました。
+正如之前提到的，Vue.js 将与 DOM 操作相关的部分与 Vue.js 的核心逻辑部分进行了拆分。
+那么现在我想让大家先关注的部分是 `runtime-core` 的 renderer factory 渲染器构造函数和 `runtime-dom` 中的 nodeOps 部分。
+
+在之前的例子中，我们是直接使用 `createApp` 方法返回的 app 对象中的 mount 方法来渲染的。
 
 ```ts
-// これは先ほどのコード
+// 这是之前我们的代码
 export const createApp = (options: Options): App => {
   return {
     mount: selector => {
@@ -223,25 +233,26 @@ export const createApp = (options: Options): App => {
 }
 ```
 
-ここまでではコードも少なく、全く複雑ではないので一見問題ないように見えます。  
-ですが、今後は Virtual DOM のパッチレンダリングのロジック等を書くことになるのでかなり複雑になります。
-Vue.js ではこのレンダリングを担う部分を`renderer`として切り出しています。
-それが`runtime-core/renderer.ts`です。
-レンダリングというと SPA においてはブラウザの DOM を司る API(document)に依存することが安易に想像できると思います。(element を作ったり text をセットしたり)
-そこで、この DOM に依存する部分と Vue.js が持つコアなレンダーロジックを切り離すために、いくつかの工夫がしてあります。
-以下のとおりです。
+这里我们只写了很少的代码，逻辑也很简单，所以看起来基本上没什么问题。
+但是以后这个方法（`mount`）将会变得非常复杂，因为我们需要在里实现虚拟 DOM 的补丁渲染（patch rendering）部分。
 
-- `runtime-dom/nodeOps`に DOM 操作をするためのオブジェクトを実装する
-- `runtime-core/renderer`ではあくまで、render のロジックのみを持つオブジェクトを生成するためのファクトリ関数を実装する。  
-  その際、Node(DOM に限らず)を扱うオブジェクトは factory の関数の引数として受け取るようにしてある。
-- `runtime-dom/index.ts`で nodeOps と renderer のファクトリをもとに renderer を完成させる
+在 Vue.js 中，负责渲染的 `renderer` 部分被独立了出来，即 `runtime-core/renderer.ts` 这个文件里面的内容。
 
-ここまでの話が図の赤く囲まれた部分です。
+说到渲染，大家都能想到 SPA 都是依赖浏览器提供的 DOM 相关的 API 来完成渲染的（例如创建元素、设置文本等）。
+
+所以，为了与 DOM 操作相关的逻辑进行拆分，我们需要再添加下面的内容：
+
+- 在 `runtime-dom/nodeOps` 中实现一个新对象用来进行 DOM 操作
+- `runtime-core/renderer` 中我们需要实现一个创建 renderer 渲染器的工厂函数，用来创建一个包含渲染逻辑的对象。但是这里需要注意的是，具体的渲染逻辑（依赖 DOM 的部分）需要作为这个函数的参数传递进去。
+- 在 `runtime-dom/index.ts` 中完成依赖 DOM 提供的 API 实现的 nodeOps 操作函数对象以及 renderer 渲染器的创建。
+
+也就是图中红色框的标注部分。
 ![refactor_createApp_render](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/refactor_createApp_render.png)
 
-ソースコードベースで説明してみます。今の時点ではまだ Virtual DOM のレンダリング機能は実装していないので、先ほどと同じ機能で作ります。
+这里需要对当前的源码进行说明。
+此时我们并没有实现根据 Virtual DOM 进行渲染的功能，所以我们需要对它进行实现，并且保证和之前的功能一致。
 
-まず、`runtime-core/renderer`に Node(DOM に限らず)のオペレーション用オブジェクトの interface を実装します。
+首先，我们需要在 `runtime-core/renderer` 中实现一个基础的不依赖 DOM 的节点接口。
 
 ```ts
 export interface RendererOptions<HostNode = RendererNode> {
@@ -255,10 +266,9 @@ export interface RendererNode {
 export interface RendererElement extends RendererNode {}
 ```
 
-ここではまだ setElementText という関数しかありませんが、ゆくゆくは createElement だったり、removeChild などが実装されるイメージをしてもらえれば大丈夫です。
-
-RendererNode と RendererElement については一旦気にしないでください。(ここの実装はあくまで DOM に依存してはいけないので、Node となるものを定義してジェネリックにしているだけです。)  
-この、RendererOptions を受け取る形で renderer のファクトリをこのファイルに実装します。
+当然，目前这里只有一个 `setElementText` 函数。但是我们最终还是会实现 `createElement`、`removeChild` 这些函数。
+这里也不要担心 RendererNodes 和 RendererElements 的类型定义，因为这部分内容最终不会依赖于 DOM，只需要定义一个节点对象 Node 的大概类型（可以视为对象泛型）就行了。
+renderer 对象的工厂函数接收一个 RendererOptions 形式的对象参数。
 
 ```ts
 export type RootRenderFunction<HostElement = RendererElement> = (
@@ -277,7 +287,7 @@ export function createRenderer(options: RendererOptions) {
 }
 ```
 
-続いて、`runtime-dom/nodeOps` 側の実装です。
+然后，我们需要实现 `runtime-dom/nodeOps`。
 
 ```ts
 import { RendererOptions } from '../runtime-core'
@@ -289,9 +299,9 @@ export const nodeOps: RendererOptions<Node> = {
 }
 ```
 
-特に難しいことはないと思います。
+我觉得到这里为止都非常容易。
 
-それでは、`runtime-dom/index.ts` で renderer を完成させましょう。
+现在，就需要在 `runtime-dom/index.ts` 中根据这些内容来实现一个 renderer 渲染器了。
 
 ```ts
 import { createRenderer } from '../runtime-core'
@@ -300,35 +310,34 @@ import { nodeOps } from './nodeOps'
 const { render } = createRenderer(nodeOps)
 ```
 
-これで renderer 部分のリファクタは終わりです。
+这样，我们就完成了 renderer 部分的重构。
 
-#### DI と DIP
+#### DI（依赖注入）和 DIP（依赖反转）
 
-renderer の設計を見てみました。改めて整理をしておくと、
+根据上面 renderer 部分的设计与代码实现，我们可以重新整理一下：
 
-- runtime-core/renderer に renderer を生成するファクトリ関数を実装
-- runtime-dom/nodeOps に DOM に依存するオペレーション(操作)をするためのオブジェクトを実装
-- runtime-dom/index にてファクトリ関数と nodeOps を組み合わせて renderer を生成
+- runtime-core/renderer：实现创建 renderer 对象的工厂函数
+- runtime-dom/nodeOps：依赖 DOM 提供的 API 来实现的节点操作对象
+- runtime-dom/index：根据 runtime-core/renderer 提供的工厂函数和 runtime-dom/nodeOps 提供的操作对象来创建一个 renderer 实例
 
-といった感じでした。  
-一般的にはこのような設計を「DIP」を利用した「DI」と言います。  
-まず、DIP についてですが、DIP(Dependency inversion principle)インタフェースを実装することにより、依存性の逆転を行います。  
-注目するべきところは、renderer.ts に実装した `RendererOptions` という interface です。  
-ファクトリ関数も、nodeOps もこの `RendererOptions` を守るように実装します。(RendererOptions というインタフェースに依存させる)  
-これを利用して DI を行います。DI (Dependency Injection)はあるオブジェクトが依存しているあるオブジェクトを外から注入することによって依存度を下げるテクニックです。  
-今回のケースでいうと、renderer は RendererOptions(を実装したオブジェクト(今回でいえば nodeOps))に依存しています。  
-この依存性を renderer から直接呼び出して実装するのはやめて、ファクトリの引数として受け取る(外から注入する)ようにしています。  
-これらのテクニックによって renderer が DOM に依存しないような工夫をとっています。
+就是这样的实现方式。
+一般我们称为根据“DIP”模式实现的“DI”。
 
-DI と DIP は慣れていないと難しい概念かもしれませんが、よく出てくる重要なテクニックなので各自で調べてもらったりして理解していただけると幸いです。
+首先，关于 DIP（Dependency inversion principle，依赖反转）中的依赖反转实现，是通过我们在 renderer.ts 中实现的这个 `RendererOptions` 的接口。
+我们实现的 renderer 的工厂函数以及 nodeOps 对象，都是为了保护这个 `RendererOptions` 类型的参数。
+然后，我们就可以利用这几个来实现 DI。
+DI（Dependency Injection，依赖注入）是 **通过从外部参数传递（注入）一个或者多个依赖对象，来减少对象本身的依赖** 的设计模式。
+这次我们通过 renderer 依赖传递的 RendererOptions（类型定义，需要实现一个这种类型的对象，也就是本例中实现的 nodeOps）参数，而不是直接在 renderer 中实现这个依赖，从而使得 renderer 可以独立于 DOM 之外。
 
-### createApp を完成させる
+当然，如果您现在还不是很了解 DI 和 DIP，或者还不理解他们的概念。我希望您能私下多多研究，毕竟这是经常使用并且非常重要的一种实现模式。
 
-実装に話を戻して、renderer が生成できたのであとは以下の図の赤い領域について考えれば良いです。
+### 完成 createApp 方法
+
+现在回到应用创建。此时我们的 renderer 渲染器已经实现完成了，接下来就需要考虑图中红色区域标注的另外一部分了。
 
 ![refactor_createApp_createApp](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/refactor_createApp_createApp.png)
 
-と、いってもやることは単純で、createApp のファクトリ関数に先ほど作った renderer を渡せるように実装すれば良いだけです。
+话虽如此，要做的事情还是简单的的，只要将刚才制作的 renderer 交给 `createApp` 这个工厂函数即可。
 
 ```ts
 // ~/packages/runtime-core apiCreateApp.ts
@@ -386,9 +395,8 @@ export const createApp = ((...args) => {
 }) as CreateAppFunction<Element>
 ```
 
-多少`~/packages/runtime-core/component.ts`等に型を移動してますが、その辺はあまり重要ではないのでソースコードを参照してもらえればと思います。(本家 Vue.js に合わせているだけです。)
+我将一部分类型移动到了 `~/packages/runtime-core/component.ts` 里面（为了和 Vue.js 的结构对齐），但是这并不影响我们阅读这部分的源代码。
 
-だいぶ本家 Vue.js のソースコードに近づいたところで動作確認をしてみましょう。変わらずメッセージが表示されていれば OK です。
+到目前为止，我们这部分已经和 Vue.js 的源码很接近了，那么我们来测试以下，如果上面的那条信息任然显示的话，就说明我们成功了。
 
-ここまでのソースコード:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/010_create_app2)
+这部分源码位于: [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/010_create_app2)
