@@ -1,8 +1,8 @@
-# HTML要素をレンダリングできるようにしよう
+# 实现 HTML 元素的渲染
 
-## h function とは
+## 什么是 h 函数？
 
-ここまでで、以下のようなソースコードが動作するようになりました。
+到目前为止，我们下面的代码已经可以运行了。
 
 ```ts
 import { createApp } from 'vue'
@@ -16,15 +16,20 @@ const app = createApp({
 app.mount('#app')
 ```
 
-これはシンプルな `Hello World.` と画面に描画するための関数でした。  
-メッセージだけでは何とも寂しいので、HTML 要素も描画できるような開発者インタフェースを考えてみましょう。  
-そこで登場するのが `h function` です。この `h` というのは `hyperscript` の略で、HTML (Hyper Text Markup Language)を JS で記述する関数として提供されます。
+这只是一个简单讲 `Hello World.` 这串文字渲染到浏览器上的函数。
+但是只渲染这么一条消息肯定是很无聊的，所以我们需要考虑怎么将一个 HTML 元素渲染到画面上。
+这就是需要 h 函数来发挥作用的时候了。
+这里的 h 是 `hyperscript` 的简写（Hyper Text Markup Language），即为了在 JS 中实现 HTML 的编写。
 
 > h() is short for hyperscript - which means "JavaScript that produces HTML (hypertext markup language)". This name is inherited from conventions shared by many Virtual DOM implementations. A more descriptive name could be createVnode(), but a shorter name helps when you have to call this function many times in a render function.
+> 
+> 翻译：`h()` 是 hyperscript 的简写，意思是“用于生成 HTML（超文本标记语言）的 JavaScript”。这个名称继承了很多虚拟 DOM 的实现中共有的很多约定。
+> 实际上，对其更加准确的描述应该是 `createVnode()`，但是通常我们需要在一个渲染函数中的很多地方使用这个函数，所以更加简短的名称显然更加有帮助。
 
 引用: https://vuejs.org/guide/extras/render-function.html#creating-vnodes
 
-Vue.js の h function についてみてみましょう。
+
+Vue.js 中 h 函数是怎么使用的？
 
 ```ts
 import { createApp, h } from 'vue'
@@ -41,24 +46,24 @@ const app = createApp({
 app.mount('#app')
 ```
 
-h function の基本的な使い方として、第 1 引数にタグ名、第 2 引数に属性、第 3 引数に子要素を配列で記述します。  
-ここで、「基本的な使い方」とわざわざ言ったのは、実は h function は引数について記法が複数あり、第 2 引数を省略したり、子要素は配列にしなかったりという使い方もできます。  
-ですが、ここでは最も基本的な記法に統一して実装してみようかと思います。
+使用 h 函数的基本使用方法是将标签名称作为第一个参数，将属性作为第二个参数，将子元素数组作为第三个参数。
+为什么说是“基本使用方法”？是因为 h 函数还有很多种使用方式，例如省略第二个参数或者不传递子元素数组等。
+但是，这里我想先按照最基本的使用方法来实现 h 函数。
 
-## どうやって実装しよう 🤔
+## 如何实现？ 🤔
 
-開発者インタフェースについてはよくわかったので、どのような実装にするか方針を決めましょう。  
-注目するべき点は、render 関数の戻り値として扱っているところです。  
-これはつまり、h 関数というものが何かしらのオブジェクトを返して内部でその結果を利用しているということです。
-複雑な子要素を含むとわかりづらいので、以下のシンプルな h 関数を実装した結果について考えてみましょう。
+现在我们肯定已经对这个方法的接口（参数定义）有了一定的了解，那么我们来思考该如何实现它。
+需要注意的是，我们会将这个函数的返回值作为 render 函数的参数。
+这也意味着，h 函数的返回值会在 Vue.js 的内部被使用。
+当然，如果在刚开始我们就是用复杂的子元素结构的话可能会难以理解，所以我们从最简单的 h 函数使用开始。。
 
 ```ts
 const result = h('div', { class: 'container' }, ['hello'])
 ```
 
-result にはどのような結果を格納するのが良いでしょうか?(結果をどのような形にして、どうレンダリングしましょうか?)
+result 的结果会是怎么样的呢？（我们应该怎样去处理这个结果并且渲染它？）
 
-result には以下のようなオブジェクトが格納されることにしてみましょう。
+加上 result 包含的是以下的内容：
 
 ```ts
 const result = {
@@ -68,8 +73,8 @@ const result = {
 }
 ```
 
-つまり、render 関数から上記のようなオブジェクトをもらい、それを元に DOM 操作をしてレンダリングをすればいいのです。
-イメージ的にはこうです。(createApp の mount の中です。)
+换句话说，我们需要在 render 函数中实现一个“接收这种格式的参数并根据它来通过 DOM 将它对应内容渲染出来”。
+也就是下面这种场景（crateApp 方法中的 mount 方法）。
 
 ```ts
 const app: App = {
@@ -80,15 +85,15 @@ const app: App = {
 }
 ```
 
-まあ、変わったところというと、message という文字列ではなく node というオブジェクトに変えただけです。  
-あとは render 関数でオブジェクトを元に DOM 操作をすれば OK です。
+很明显，这里的唯一的变化就是将之前的 `message` 文本字符串改为了一个 `node` 节点对象。
+现在，我们要做的就是在 render 函数中根据这个对象来进行 DOM 操作。
 
-実は、このオブジェクトには名前がついていて、「Virtual DOM」と言います。  
-Virtual DOM については Virtual DOM のチャプターで詳しく解説するので、とりあえず名前だけ覚えてもらえれば大丈夫です。
+实际上，这个对象有一个名字：Virtual DOM，也就是虚拟 DOM。
+当然虚拟 DOM 在后面的章节中有专门的介绍，这里我们只需要记住这个对象名字就行了。
 
-## h function を実装する
+## 实现 h 函数
 
-まずは必要なファイルを作成します。
+首先，我们创建对应的文件：
 
 ```sh
 pwd # ~
@@ -96,7 +101,7 @@ touch packages/runtime-core/vnode.ts
 touch packages/runtime-core/h.ts
 ```
 
-vnode.ts に型を定義します。今回 vnode.ts でやるのはこれだけです。
+然后我们只需要在 vnode.ts 中定义相关的类型
 
 ```ts
 export interface VNode {
@@ -110,7 +115,7 @@ export interface VNodeProps {
 }
 ```
 
-続いて h.ts で関数本体を実装します。
+接下来，就需要在 h.ts 中实现 h 函数的本体了。
 
 ```ts
 export function h(
@@ -122,7 +127,7 @@ export function h(
 }
 ```
 
-とりあえずここまでで playground にて h 関数を使ってみましょう。
+现在，让我们在 playground 中验证一下 h 函数。
 
 ```ts
 import { createApp, h } from 'chibivue'
@@ -136,18 +141,19 @@ const app = createApp({
 app.mount('#app')
 ```
 
-画面の表示は壊れてしまっていますが、apiCreateApp でログを仕込んでみると期待通りになっていることが確認できます。
+虽然现在在画面上不会显示任何内容了。
+但是如果我们在 createApp 的方法中添加一个日志打印，就可以看到目前的运行情况是符合我们的预期的。
 
 ```ts
 mount(rootContainer: HostElement) {
   const vnode = rootComponent.render!();
-  console.log(vnode); // ログを見てみる
+  console.log(vnode); // 打印日志
   render(vnode, rootContainer);
 },
 ```
 
-それでは、render 関数を実装してみましょう。
-RendererOptions に `createElement` と `createText` と `insert` を実装します。
+现在，让我们来实现 render 函数的具体逻辑。
+当然，我们首先要在 `RendererOptions` 中实现 `createElement`、 `createText` 和 `insert` 这几个方法。
 
 ```ts
 export interface RendererOptions<HostNode = RendererNode> {
@@ -161,7 +167,7 @@ export interface RendererOptions<HostNode = RendererNode> {
 }
 ```
 
-render 関数に`renderVNode`という関数を実装してみます。(とりあえず一旦 props は無視して実装しています。)
+然后，在 render 函数中尝试实现 `renderVNode` 方法（暂时先忽略 Props 的实现）。
 
 ```ts
 export function createRenderer(options: RendererOptions) {
@@ -192,7 +198,7 @@ export function createRenderer(options: RendererOptions) {
 }
 ```
 
-runtime-dom の nodeOps の方でも実際の DOM のオペレーションを定義してあげます。
+runtime-dom 中的 nodeOps 也需要根据 DOM 提供的 API 来实现 RendererOptions 中定义的几个方法。
 
 ```ts
 export const nodeOps: RendererOptions<Node> = {
@@ -217,8 +223,8 @@ export const nodeOps: RendererOptions<Node> = {
 }
 ```
 
-さて、ここまでで画面に要素を描画できるようになっているはずです。
-playground で色々書いてみて試してみましょう!
+现在，应该就可以在画面上显示相应的内容了。
+让我们用 playground 写一些东西来验证一下!
 
 ```ts
 import { createApp, h } from 'chibivue'
@@ -235,32 +241,31 @@ const app = createApp({
 app.mount('#app')
 ```
 
-やった！ h 関数でいろんなタグを描画できるようになった！
+Nice！现在我们就可以使用 h 函数来渲染不同的 HTML 标签了。
 
 ![](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/simple_h_function.png)
 
-## 表示するだけでは寂しいので
+## 只是显示是远远不够的
 
-せっかくなので props の実装をしてクリックイベントや style を使えるようにしてみます。
+现在我们已经完成了元素的显示，借此机会，我们可以接着实现 props 部分的处理，以便我们能使用元素样式和事件。
 
-この部分について、直接 renderVNode に実装してしまってもいいのですが、本家に倣った設計も考慮しつつ進めてみようかと思います。
+虽然这部分我们也可以直接在 renderVNode 方法里面实现，但是最好还是遵循我们最初的代码设计来继续进行。
 
-本家 Vue.js の runtime-dom ディテクトリに注目してください。
+请大家将注意力转移到 Vue.js 的 runtime-dom 目录上。
 
 https://github.com/vuejs/core/tree/main/packages/runtime-dom/src
 
-特に注目して欲しいのは `modules` というディレクトリと `patchProp.ts` というファイルです。
+特别需要主要的是 `modules.ts` 和 `patchProp.ts` 两个文件。
 
-modules の中には class や style, その他 props の操作をするためのファイルが実装されています。
-https://github.com/vuejs/core/tree/main/packages/runtime-dom/src/modules
+在 module 目录中，有一些用于操作 class 类、样式和其他属性的文件。 https://github.com/vuejs/core/tree/main/packages/runtime-dom/src/modules
 
-それらを patchProp という関数にまとめているのが patchProp.ts で、これを nodeOps に混ぜ込んでいます。
+这些会在 patchProp.ts 中组合到一个 patchProp 的函数中，然后这个函数会被整合到 nodeOps 对象里面。
 
-言葉で説明するのも何なので、実際にこの設計に基づいてやってみようと思います。
+这部分比较难以用语言来完美地解释，所以我们会根据这个设计来实现对应的代码，希望大家能从代码中进行理解。
 
-## patchProps のガワを作成
+## 创建 patchProps
 
-まずガワから作ります。
+首先先创建一个 patchProps.ts 文件。
 
 ```sh
 pwd # ~
@@ -277,14 +282,14 @@ export const isOn = (key: string) => onRE.test(key)
 
 export const patchProp: DOMRendererOptions['patchProp'] = (el, key, value) => {
   if (isOn(key)) {
-    // patchEvent(el, key, value); // これから実装します
+    // patchEvent(el, key, value); // 现在需要实现的
   } else {
-    // patchAttr(el, key, value); // これから実装します
+    // patchAttr(el, key, value); // 现在需要实现的
   }
 }
 ```
 
-`RendererOptions` に patchProp の型がないので定義します。
+因为目前 `RendererOptions` 中没有 patchProp 的类型定义，所以我们需要加上。
 
 ```ts
 export interface RendererOptions<
@@ -298,7 +303,7 @@ export interface RendererOptions<
   .
 ```
 
-それに伴って、nodeOps では patchProps 以外の部分を使用するように書き換えます。
+同时，需要将 nodeOps 修改成使用 `RendererOptions` 中除了 patchProp 之外的那部分。
 
 ```ts
 // patchPropをomitする
@@ -311,15 +316,15 @@ export const nodeOps: Omit<RendererOptions, "patchProp"> = {
   .
 ```
 
-そして、`runtime-dom/index`の renderer を生成する際に patchProp も一緒に渡すように変更します。
+然后，在 `runtime-dom/index` 的 renderer 创建函数中，将 patchProp 也一起传递进去。
 
 ```ts
 const { render } = createRenderer({ ...nodeOps, patchProp })
 ```
 
-## イベントハンドラ
+## 事件处理
 
-patchEvent を実装します。
+现在开始实现 patchEvent。
 
 ```sh
 pwd # ~
@@ -327,7 +332,7 @@ mkdir packages/runtime-dom/modules
 touch packages/runtime-dom/modules/events.ts
 ```
 
-events.ts を実装します。
+首先实现 event.ts。
 
 ```ts
 interface Invoker extends EventListener {
@@ -391,31 +396,34 @@ function createInvoker(initialValue: EventValue) {
 }
 ```
 
-少し大きいですが、分割すればとても単純なことです。
+虽然代码有点儿多，但是拆分成几个部分来理解就很简单了。
 
-addEventListener は名前の通り、ただイベントのリスナーを登録するための関数です。  
-本当は然るべきタイミングで remove する必要があるのですが、ここでは一旦気にしないことにします。
+顾名思义，`addEventListener` 是一个用来注册监听器的函数。
+当然，实际上，在合适的时机去移除监听器是非常有必要的，但是目前我们还不需要太过注意这部分内容。
 
-patchEvent では invoker という関数でラップしてリスナーを登録しています。  
-parseName に関しては、単純に props のキー名は `onClick` や `onInput` のようになっているので、それらを on を除いた小文字に変換しているだけです。(eg. click, input)  
-一点注意点としては、同じ要素に対して重複して addEventListener しないように、要素に `_vei` (vue event invokers)という名前で invoker を生やしてあげます。  
-これによって patch 時に existingInvoker.value を更新することで重複して addEventListener せずにハンドラを更新することができます。
+在 `patchEvent` 函数中，我们会将绑定的事件函数封装到 `invoker` 中，然后再通过 `addEventListener` 这个注册监听器。
 
-あとは patchProps に組み込んで renderVNode で使ってみましょう。
+对于 `parseName` 函数，就是单纯的将 `props` 中的事件绑定属性（就是 `onClick`、`onInput`）去掉前面的 `on` 并转换为小写。
 
-patchProps
+值得注意的一点是，在 `patchEvent` 中需要在 Element 元素上创建一个 `_vei` 的事件调用处理函数对象，增加一个已有事件的对比判断，这样就不会给同一个元素多次注册相同的事件处理。
+
+这样做也可以在 patch 更新阶段，直接更新 `existingInvoker.value` 来更新事件处理函数，而不是再次调用 `addEventListener` 来重新注册。
+
+现在我们将这部分内容合并到 `patchProps` 中，与 `renderVNode` 一起使用。
+
+patchProps：
 
 ```ts
 export const patchProp: DOMRendererOptions['patchProp'] = (el, key, value) => {
   if (isOn(key)) {
     patchEvent(el, key, value)
   } else {
-    // patchAttr(el, key, value); // これから実装します
+    // patchAttr(el, key, value); // 需要实现
   }
 }
 ```
 
-runtime-core/renderer.ts の renderVNode
+runtime-core/renderer.ts 中的 renderVNode：
 
 ```ts
   const {
@@ -431,7 +439,7 @@ runtime-core/renderer.ts の renderVNode
     if (typeof vnode === "string") return hostCreateText(vnode);
     const el = hostCreateElement(vnode.type);
 
-    // ここ
+    // 这里增加以下内容
     Object.entries(vnode.props).forEach(([key, value]) => {
       hostPatchProp(el, key, value);
     });
@@ -440,7 +448,7 @@ runtime-core/renderer.ts の renderVNode
     .
 ```
 
-さて、playground で動かしてみましょう。簡単にアラートを表示してみようと思います。
+然后，我们在 playground 中使用一下，就简单的显示一个提示消息吧。
 
 ```ts
 import { createApp, h } from 'chibivue'
@@ -465,16 +473,18 @@ const app = createApp({
 app.mount('#app')
 ```
 
-h 関数でイベントハンドラを登録できるようになりました!
+现在已经可以使用 h 函数来处理事件绑定了。
 
 ![simple_h_function_event](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/simple_h_function_event.png)
 
-## 他の Props にも対応してみる。
+## 尝试支持其他的 props 内容
 
-あとは同じようなことを setAttribute でやるだけです。  
-これは `modules/attrs.ts` に実装します。  
-ここはぜひみなさんでやってみてください。答えは最後にこのチャプターのソースコードを添付するのでそこで確認してみてください。  
-これくらいのコードが動くようになればゴールです。
+接下来就是在 `setAttribute` 中实现类似的内容。
+
+我们可以创建 `modules/attrs.ts` 并在这里实现这个方法。
+大家可以尝试自己实现一下。答案可以参考本章最后的源代码部分。
+
+实现的目标是让下面的这部分代码可以正常的工作。
 
 ```ts
 import { createApp, h } from 'chibivue'
@@ -501,7 +511,6 @@ app.mount('#app')
 
 ![simple_h_function_attr](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/simple_h_function_attr.png)
 
-これでかなりの HTML に対応することができました!
+现在，我们就可以处理很多的 HTML 元素和属性了。
 
-ここまでのソースコード:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/020_simple_h_function)
+到此为止的所有源代码位于: [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/020_simple_h_function)
