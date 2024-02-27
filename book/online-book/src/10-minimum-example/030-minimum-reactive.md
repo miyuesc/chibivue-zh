@@ -1,16 +1,17 @@
-# 小さい Reactivity System
+# 简易的响应式系统
 
-## 今回目指す開発者インタフェース
+## 这次我们需要开发的内容
 
-ここからは Vue.js の醍醐味である Reactivity System というものについてやっていきます。  
-これ以前の実装は、見た目が Vue.js に似ていれど、それは見た目だけで機能的には全く Vue.js ではありません。  
-たんに最初の開発者インタフェースを実装し、いろんな HTML を表示できるようにしてみました。
+从现在开始，我们将讨论 Vue.js 最核心的部分，也就是 `Reactivity System` 响应式系统。
 
-しかし、このままでは一度画面を描画するとその後はそのままで、Web アプリケーションとしてはただの静的なサイトになってしまっています。  
-これから、もっとリッチな UI を構築するために状態を持たせたり、その状態が変わったら描画を更新したりといったことをやっていきます。
+之前我们实现的内容，只是使用起来像 Vue.js，但是它只有显示 HTML 元素的功能，这种实现完全不能算是 Vue.js。
 
-まずは例の如くどういった開発者インタフェースになるか考えてみましょう。  
-以下のようなのはどうでしょうか?
+也就是说我们之前实现的“开发者界面”，只能显示各种 HTML 元素，但是只要它已经被渲染出来之后，它就不会再发生任何的改变，只是一个完全静态的站点。
+
+所以从现在开始，为了构建更加丰富且动态的 UI 界面，我们需要添加一个“状态”，并且在状态发生变化时更新界面显示。
+
+首先，让我们先想象一下这部分开发的内容在使用时应该是什么样子。
+是不是想下面这样？
 
 ```ts
 import { createApp, h, reactive } from 'chibivue'
@@ -34,42 +35,41 @@ const app = createApp({
 app.mount('#app')
 ```
 
-普段 SFC を利用した開発を行っている方は少々見慣れないかもしれません。  
-これは、setup というオプションでステートをもち、render 関数を return する開発者インタフェースです。  
-実際、Vue.js にはこういった記法があります。
-
+这段代码对于平时使用 SFC 模式进行开发的开发人员来说可能有点陌生。
+而这是一个具有 `setup` 选项来保存状态并返回一个执行 h 函数的渲染函数。
+但是实际上 Vue.js 是支持这种使用方式的：
 https://vuejs.org/api/composition-api-setup.html#usage-with-render-functions
 
-reactive 関数でステートを定義し、それを書き換える increment という関数を実装してボタンの click イベントにバインドしています。
-やりたいことをまとめておくと、
+在这段代码中，我们使用 `reactive` 来定义了一个状态，并且创建了一个 `increment` 函数来修改这个状态，并且将这个函数绑定到了按钮的 `click` 事件上。
 
-- setup 関数を実行することで戻り値から vnode 取得用の関数を得る
-- reactive 関数に渡したオブジェクトをリアクティブにする
-- ボタンをクリックすると、ステートが更新される
-- ステートの更新を追跡して render 関数を再実行し、画面を再描画する
+总结一下我们需要完成的内容：
+- 执行 `setup` 函数，并得到其执行 h 函数的返回函数
+- 通过 `reactive` 函数来实现响应式对象
+- 点击按钮时，更新数据状态
+- 通过跟踪数据的状态变化，重新执行渲染函数并更新页面显示
 
-## Reactivity System とはどのようなもの?
+## 什么是响应式系统？
 
-さてここで、そもそもリアクティブとは何だったかのおさらいです。
-公式ドキュメントを参照してみます。
+让我们来回顾一下什么是响应式。
+我们可以参考一下官方文档。
 
-> リアクティブなオブジェクトは JavaScript プロキシで、通常のオブジェクトと同じように振る舞います。違いは、Vue がリアクティブなオブジェクトのプロパティアクセスと変更を追跡できることです。
+> 响应式对象是 JavaScript 代理，其行为就和普通对象一样。不同的是，Vue 能够拦截对响应式对象所有属性的访问和修改，以便进行依赖追踪和触发更新
 
-[引用元](https://ja.vuejs.org/guide/essentials/reactivity-fundamentals.html)
+[引用自：Vue/响应式基础/reactive](https://cn.vuejs.org/guide/essentials/reactivity-fundamentals#reactive)
 
-> Vue の最も特徴的な機能の 1 つは、控えめな Reactivity System です。コンポーネントの状態はリアクティブな JavaScript オブジェクトで構成されています。状態を変更すると、ビュー (View) が更新されます。
+> Vue 最标志性的功能就是其低侵入性的响应式系统。组件状态都是由响应式的 JavaScript 对象组成的。当更改它们时，视图会随即自动更新。
 
-[引用元](https://ja.vuejs.org/guide/extras/reactivity-in-depth.html)
+[引用自：Vue/深入响应式系统](https://cn.vuejs.org/guide/extras/reactivity-in-depth.html)
 
-要約してみると、「リアクティブなオブジェクトは変更があった時に画面が更新される」です。  
-これの実現方法について考えるのは少し置いておいて、とりあえず先ほどあげた開発者インタフェースを実装してみます。
+总而言之，响应式对象在状态发生变化时也会同时更新屏幕显示。
+让我们暂时先忽略这部分，先实现之前提到的其他内容。
 
-## setup 関数の実装
+## 实现 setup 函数选项
 
-やることはとっても簡単です。
-setup オプションをを受け取り実行し、あとはそれをこれまでの render オプションと同じように使えば OK です。
+这部分内容很简单。
+我们只需要接收一个 `setup` 选项，然后执行它，得到渲染函数然后按照 render 一样的处理方式来处理它。
 
-~/packages/runtime-core/componentOptions.ts を編集します。
+在 ~/packages/runtime-core/componentOptions.ts 中声明类型。
 
 ```ts
 export type ComponentOptions = {
@@ -78,7 +78,7 @@ export type ComponentOptions = {
 }
 ```
 
-あとはそれを使うように各コードを修正します。
+然后修改下面的这些代码。
 
 ```ts
 // createAppAPI
@@ -104,7 +104,7 @@ import { createApp, h } from 'chibivue'
 
 const app = createApp({
   setup() {
-    // ゆくゆくはここでステートを定義
+    // 在这里定义状态
     // const state = reactive({ count: 0 })
 
     return function render() {
@@ -127,32 +127,37 @@ const app = createApp({
 app.mount('#app')
 ```
 
-まあ、これだけです。
-実際にはステートが変更された時にこの `updateComponent` を実行したいわけです。
+这样就差不多了。
+后面的内容实际上是希望在状态变更时执行 `updateComponent` 函数。
 
-## Proxy オブジェクト
+## Proxy 对象代理
 
-今回のメインテーマです。どうにかしてステートが変更された時に updateComponent を実行したいです。
+这次的核心主题是，希望在状态发生改变时以某种方式执行 `updateComponent` 函数。
 
-Proxy と呼ばれるオブジェクトが肝になっています。
+其中的关键就是 Proxy 对象代理。
 
-まず、 Reactivity System の実装方法についてではなく、それぞれについての説明をしてみます。
+首先，不需要先忙着实现响应式系统，我先解释一下什么是 Proxy。
 
-https://developer.mozilla.org/ja/docs/Web/JavaScript/Reference/Global_Objects/Proxy
+https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Proxy
 
-Proxy はとても面白いオブジェクトです。
+Proxy 是一个非常有趣的内容。
+它接收一个对象参数并通过 `new` 关键字来创建一个代理对象。
 
-以下のように、引数にオブジェクトを渡し、new することで使います。
+例如：
 
 ```ts
 const o = new Proxy({ value: 1 }, {})
 console.log(o.value) // 1
 ```
 
-この例だと、`o` は通常のオブジェクトとほぼ同じ動作をします。
+在这个例子中，代理对象 `o` 与普通对象的行为非常相似。
 
-ここで、面白いのが、Proxy は第 2 引数を取ることができ、ハンドラを登録することができます。  
-このハンドラは何のハンドラかというと、オブジェクトの操作に対するハンドラです。以下の例をみてください。
+有趣的是，Proxy 接收第二参数，允许您自定义代理处理程序。
+
+这个处理程序是什么呢？
+它是用来操作源对象的程序。
+
+例如：
 
 ```ts
 const o = new Proxy(
@@ -167,15 +172,16 @@ const o = new Proxy(
 )
 ```
 
-この例では生成するオブジェクトに対する設定を書き込んでいます。  
-具体的には、このオブジェクトのプロパティにアクセス(get)した際に元のオブジェクト(target)とアクセスされた key 名がコンソールに出力されるようになっています。
-実際にブラウザ等で動作を確認してみましょう。
+在这个例子中，我们自定义了代理对象的 `get` 操作。
+
+也就是说，当访问（读取）这个对象的属性时，原始对象（target）和我们访问的对象属性（key） 都会被输出到控制台中。
+我们可以在浏览器的控制台中检查这个操作。
 
 ![proxy_get](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/proxy_get.png)
 
-この Proxy で生成したオブジェクトのプロパティから値を読み取った時に設定された処理が実行されているのがわかるかと思います。
+可以看到，当我们通过 Proxy 生成的代理对象来访问对象属性时，就会执行 get 设置的方法。
 
-同様に、set に対しても設定することができます。
+同样的，我们也可以设置 set 对应的处理。
 
 ```ts
 const o = new Proxy(
@@ -192,49 +198,52 @@ const o = new Proxy(
 
 ![proxy_set](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/proxy_set.png)
 
-Proxy の理解はこの程度で OK です。
+暂时，我们将 Proxy 了解到这个程度就可以了。
+····
 
-## Proxy で Reactivity System を実現してみる
+## Proxy 实现响应式系统
 
 ::: warning
-2023 年 の 12 月末に [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) がリリースされましたが、これには [reactivity のパフォーマンス改善](https://github.com/vuejs/core/pull/5912) が含まれています。  
-このオンラインブックはそれ以前の実装を参考にしていることに注意しくてださい。  
-このチャプターに関しては大きな変更はありませんが、ファイル構成が少し違っていたり、コードの一部が変更されていたりします。  
-然るべきタイミングでこのオンラインブックも追従する予定です。  
+2023 年 12 月月底 [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) 发布了，其中包括了 [reactivity 的性能优化](https://github.com/vuejs/core/pull/5912) 部分。  
+需要注意的是，本书参考的是 Vue.js 之前的实现方式。  
+本章内容不会有太大改变，但是文件结构可能略有调整，代码也有部分改动。
+我也会在日后对这本书进行相应的更新。  
 :::
 
-改めて目的を明確にしておくと、今回の目的は「ステートが変更された時に `updateComponent` を実行したい」です。  
-Proxy を用いた実装の流れについて説明してみます。
+再次明确一下，我们这次的目的是实现“当数据状态发生改变时执行 `updateComponent` 更新页面视图”。
+现在我们来分析以下怎么使用 Proxy 来实现这个过程。
 
-まず、Vue.js の Reactivity System には `target`, `Proxy`, `ReactiveEffect`, `Dep`, `track`, `trigger`, `targetMap`, `activeEffect`というものが登場します。
+首先，Vue.js 的整个响应式系统包括 `target`, `Proxy`, `ReactiveEffect`, `Dep`, `track`, `trigger`, `targetMap`, `activeEffect` 几个部分。
 
-まず、targetMap の構造についてです。  
-targetMap はある target の key と dep のマッピングです。  
-target というのはリアクティブにしたいオブジェクト、dep というのは実行したい作用(関数)だと思ってもらえれば大丈夫です。  
-コードで表すとこういう感じになります。
+我们先了解一下 `targetMap` 的格式。
+顾名思义，`targetMap` 是一个 Map 对象，是目标对象 target 的属性 key 与依赖对象 dep 的映射关系。
+如果我们将 target 作为我们需要进行响应式处理的对象，那么 dep 就是我们需要在目标属性改变时执行的操作（函数）。
+
+体现为代码的话，就是如下的形式：
 
 ```ts
-type Target = any // 任意のtarget
-type TargetKey = any // targetが持つ任意のkey
+type Target = any // 任意对象
+type TargetKey = any // target 的任何一个 key
 
-const targetMap = new WeakMap<Target, KeyToDepMap>() // このモジュール内のグローバル変数として定義
+const targetMap = new WeakMap<Target, KeyToDepMap>() // 定义为当前模块中的全局变量
 
-type KeyToDepMap = Map<TargetKey, Dep> // targetのkeyと作用のマップ
+type KeyToDepMap = Map<TargetKey, Dep> // target 中 key 与 dep 组成的 Map 对象
 
-type Dep = Set<ReactiveEffect> // depはReactiveEffectというものを複数持っている
+type Dep = Set<ReactiveEffect> // dep 有多个叫做 Reactive Effect 的东西
 
 class ReactiveEffect {
   constructor(
-    // ここに実際に作用させたい関数を持たせます。 (今回でいうと、updateComponent)
+    // 发生改变时我们实际希望执行的操作函数（当前就是 updateComponent）
     public fn: () => T,
   ) {}
 }
 ```
 
-基本的な構造はこれが担っていて、あとはこの TargetMap をどう作っていくか(どう登録していくか)と実際に作用を実行するにはどうするかということを考えます。
+TargetMap 的基本结构大概就是这个样子了。现在我们需要考虑的时候怎么创建这个 TargetMap（怎么注册）以及怎么去执行操作函数。
 
-そこで登場する概念が `track` と `trigger` です。
-それぞれ名前の通り、`track` は `TargetMap` に登録する関数、`trigger` は `TargetMap` から作用を取り出して実行する関数です。
+这里就需要提出 `track` 和 `trigger` 两个概念了。
+
+顾名思义，`track` 就是注册 `targetMap` 与操作函数，而 `trigger` 则是从 `targetMap` 中找到对应的操作函数并执行它。
 
 ```ts
 export function track(target: object, key: unknown) {
@@ -246,7 +255,7 @@ export function trigger(target: object, key?: unknown) {
 }
 ```
 
-そして、この track と trigger は Proxy の get と set のハンドラに実装されます。
+而 `track` 和 `trigger` 这两个操作分别是在 Proxy 的 get 和 set 中执行的。
 
 ```ts
 const state = new Proxy(
@@ -265,7 +274,7 @@ const state = new Proxy(
 )
 ```
 
-この Proxy 生成のための API が reactive 関数です。
+而生成这个 Proxy 代理对象的就是我们的 reactive 函数。
 
 ```ts
 function reactive<T>(target: T) {
@@ -285,16 +294,17 @@ function reactive<T>(target: T) {
 
 ![reactive](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/reactive.drawio.png)
 
-ここで、一つ足りない要素について気づくかもしれません。それは「track ではどの関数を登録するの?」という点です。
-答えを言ってしまうと、これが `activeEffect` という概念です。
-これは、targetMap と同様、このモジュール内のグローバル変数として定義されていて、ReactiveEffect の `run` というメソッドで随時設定されます。
+当然，通过这个图我们会注意到目前我们还查了一个元素。
+也就是说“在 `track` 过程中我们应该向 `targetMap` 中注册哪个操作函数？”。
+答案就是 `activeEffect`。
+`activeEffect` 与 `targetMap` 一样，都是一个模块中的全局变量，基于类型 `ReactiveEffect`，由 `run` 方法随时控制当前执行的 `activeEffect` 具体内容。
 
 ```ts
 let activeEffect: ReactiveEffect | undefined
 
 class ReactiveEffect {
   constructor(
-    // ここに実際に作用させたい関数を持たせます。 (今回でいうと、updateComponent)
+    // 发生改变时我们实际希望执行的操作函数（当前就是 updateComponent）
     public fn: () => T,
   ) {}
 
@@ -305,7 +315,7 @@ class ReactiveEffect {
 }
 ```
 
-どのような原理かというと、このようなコンポーネントを想像してください。
+至于它的原理，我们可以想象假设有这样一个组件：
 
 ```ts
 {
@@ -329,10 +339,10 @@ class ReactiveEffect {
 }
 ```
 
-これを、内部的には以下のようにリアクティブを形成します。
+然后，在内部会形成如下代码结构：
 
 ```ts
-// chibivue 内部実装
+// chibivue 的内部实现
 const app: App = {
   mount(rootContainer: HostElement) {
     const componentRender = rootComponent.setup!()
@@ -348,25 +358,27 @@ const app: App = {
 }
 ```
 
-順を追って説明すると、まず、`setup` 関数が実行されます。
-この時点で reactive proxy が生成されます。つまり、ここで作られた proxy に対してこれから何か操作があると proxy で設定した通り動作をとります。
+让我们一步一步的进行解释：
+
+首先，执行 `setup` 函数。
+此时，会先生成一个响应式代理对象 `state`，也就是说，这个代理对象执行任何读写操作，都会按照我们之前设置的方法执行。
 
 ```ts
-const state = reactive({ count: 0 }) // proxyの生成
+const state = reactive({ count: 0 }) // proxy 生成
 ```
 
-次に、`updateComponent` を渡して `ReactiveEffect` (Observer 側)を生成します。
+然后，会将 `updateComponent` 传递给 `ReactiveEffect` 生成一个操作对象（Observer 观察者端）。
 
 ```ts
 const effect = new ReactiveEffect(updateComponent)
 ```
 
-この `updateComponent` で使っている `componentRender` は `setup` の`戻り値`の関数です。そしてこの関数は proxy によって作られたオブジェクトを参照しています。
+其中 `updateComponent` 这个函数使用的是 `componentRender`，也就是 `setup` 返回的 `render` 函数，并且这个 `render` 函数中还依赖了我们之前声明的代理对象。
 
 ```ts
 function render() {
   return h('div', { id: 'my-app' }, [
-    h('p', {}, [`count: ${state.count}`]), // proxy によって作られたオブジェクトを参照している
+    h('p', {}, [`count: ${state.count}`]), // 依赖由 reactive 创建的 proxy 代理对象
     h(
       'button',
       {
@@ -378,36 +390,36 @@ function render() {
 }
 ```
 
-実際にこの関数が走った時、`state.count` の `getter` 関数が実行され、`track` が実行されるようになっています。  
-この状況下で、effect を実行してみます。
+当这个函数实际执行的时候，就会读取 `state.count` 属性，执行 `getter` 函数，然后再执行 `track`。
+
+这种情况下，当我们新建的 `effect` 对象运行时：
 
 ```ts
 effect.run()
 ```
 
-そうすると、まず `activeEffect` に `updateComponent` が設定されます。  
-この状態で `track` が走るので、`targetMap` に `state.count` と `updateComponent` のマップが登録されます。  
-これがリアクティブの形成です。
+它会将 `activeEffect` 对应的事件处理函数设置为 `updateComponent`。
+由于之前在 `track` 阶段已经将 `state.count` 与 `updateComponent` 之间的映射关系保存到了 `targetMap` 中，这时就形成了完整的响应处理方案。
 
-ここで、increment が実行された時のことを考えてみましょう。  
-increment では `state.count` を書き換えているので `setter` が実行され、`trigger` が実行されます。  
-`trigger` は `state` と `count` を元に `targetMap` から `effect`(今回の例だと updateComponent)をみつけ、実行します。
-これで画面の更新が行われるようになりました!
+现在，我们需要考虑当 `increment` 执行导致状态改变时会发生什么。
 
-これによって、リアクティブを実現することができます。
+在 `increment` 方法中，由于修改了 `state.count`，会触发 `setter` 执行，从而执行 `trigger`。
+而 `trigger` 方法会从 `targetMap` 中根据 `state` 和 `count` 找到状态变化对应的响应函数 `effect`（这里也就是 `updateComponent` 函数），然后执行这个 `effect`。
 
-ちょっとややこしいので図でまとめます。
+这样就完整地实现了响应式。
+
+这么说起来可能很复杂，我用下面这张图来概括一下。
 
 ![reactivity_create](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/reactivity_create.drawio.png)
 
-## これらを踏まえて実装しよう
+## 根据这些来完整地实现响应式系统
 
-一番難しいところは上記までの理解なので、理解ができればあとはソースコードを書くだけです。  
-とは言っても、実際のところどうなってるのかよく分からず上記だけでは理解ができない方もいるでしょう。  
-そんな方も一旦ここで実装してみましょう。それから実際のコードを読みながら先ほどのセクションを見返してもらえたらと思います!
+实际上，响应式系统中最难以理解的就是上面的内容，只要我们理解了这些内容，我们接下来要做的就是编写代码了。
+但是话虽如此，肯定还是有很多人仅凭上面的内容还是难以理解。
+如果是这样的话，我希望我们在这里去实现它的同时，也能根据编写的代码一起去回顾前面的内容。
 
-まずは必要なファイルを作ります。`packages/reactivity`に作っていきます。
-ここでも本家 Vue の構成をなるべく意識します。
+首先，我们需要创建一些必要的文件，这些文件也在 `packages/reactivity` 的目录下。
+并且我也会尽量与 Vue.js 的源码结构保持一致。
 
 ```sh
 pwd # ~
@@ -421,9 +433,10 @@ touch packages/reactivity/reactive.ts
 touch packages/reactivity/baseHandler.ts
 ```
 
-例の如く、index.ts は export しているだけなので特に説明はしません。reactivity 外部パッケージから使いたくなったものはここから export しましょう。
+如上所示，index.ts 中只是通过 export 导出 reactivity 内部的内容，所以不会做详细说明。
+如果你需要在外面使用 reactivity 中的内容，就需要在这里对它进行导出。
 
-dep.ts からです。
+dep.ts 的内容如下：
 
 ```ts
 import { type ReactiveEffect } from './effect'
@@ -436,9 +449,9 @@ export const createDep = (effects?: ReactiveEffect[]): Dep => {
 }
 ```
 
-effect の定義がないですがこれから実装するので Ok です。
+虽然在这之前 effect 还没有定义，但是我们马上就会实现它了。
 
-続いて effect.ts です。
+接下来是 effect.ts 的内容：
 
 ```ts
 import { Dep, createDep } from './dep'
@@ -452,8 +465,8 @@ export class ReactiveEffect<T = any> {
   constructor(public fn: () => T) {}
 
   run() {
-    // ※ fnを実行する前のactiveEffectを保持しておいて、実行が終わった後元に戻します。
-    // これをやらないと、どんどん上書きしてしまって、意図しない挙動をしてしまいます。(用が済んだら元に戻そう)
+    // ※ 保存之前绑定的 fn 函数，确保执行完成之后能恢复到之前的 activeEffect
+    // 如果不这么处理的话，activeEffect 就会不停地被覆盖，导致一些意想不到的问题（所以最好还是恢复成原样）
     let parent: ReactiveEffect | undefined = activeEffect
     activeEffect = this
     const res = this.fn()
@@ -493,11 +506,12 @@ export function trigger(target: object, key?: unknown) {
 }
 ```
 
-track と trigger の中身についてこれまで解説していないのですが、単純に targetMap に登録をしたり取り出して実行したりしているだけなので頑張って読んでみてください。
+关于 track 和 trigger 的内容不会再做太多解释，因为他们就是单纯的注册 `targetMap` 或者从 `targetMap` 中查询操作并执行。
 
-続いて baseHandler.ts です。ここには reactive proxy のハンドラを定義します。  
-まあ、reactive に直接実装してもいいのですが、本家がこうなっているので真似してみました。  
-実際には readonly や shallow などさまざまなプロキシが存在するのでそれらのハンドラをここに実装するイメージです。(今回はやりませんが)
+接下来是 baseHandler.ts。这里会定义一个 Proxy 代理的操作处理程序。
+当然，你也可以直接用 reactive 来实现，但是为了保持与源码的结构一致，我这里会参考它的实现方式实现。
+
+实际上，Vue.js 还有很多种代理方式，例如只读（readonly）代理和浅（shallow）代理，所以我们的想法是都在这里实现这些代理对应的处理函数（但是现在还不需要这么做）。
 
 ```ts
 import { track, trigger } from './effect'
@@ -508,7 +522,7 @@ export const mutableHandlers: ProxyHandler<object> = {
     track(target, key)
 
     const res = Reflect.get(target, key, receiver)
-    // objectの場合はreactiveにしてあげる (これにより、ネストしたオブジェクトもリアクティブにすることができます。)
+    // 如果是object的话，可以进行 reactive (这样，嵌套的对象也可以进行代理。)
     if (res !== null && typeof res === 'object') {
       return reactive(res)
     }
@@ -519,7 +533,7 @@ export const mutableHandlers: ProxyHandler<object> = {
   set(target: object, key: string | symbol, value: unknown, receiver: object) {
     let oldValue = (target as any)[key]
     Reflect.set(target, key, value, receiver)
-    // 値が変わったかどうかをチェックしてあげておく
+    // 检查一下值是否发生了变化
     if (hasChanged(value, oldValue)) {
       trigger(target, key)
     }
@@ -531,12 +545,14 @@ const hasChanged = (value: any, oldValue: any): boolean =>
   !Object.is(value, oldValue)
 ```
 
-ここで、Reflect というものが登場していますが、Proxy と似た雰囲気のものなんですが、Proxy があるオブジェクトに対する設定を書き込む処理だったのに対し、Reflect はあるオブジェクトに対する処理を行うものです。  
-Proxy も Reflect も JS エンジン内のオブジェクトにまつわる処理の API で、普通にオブジェクトを使うのと比べてメタなプログラミングを行うことができます。  
-そのオブジェクトを変化させる関数を実行したり、読み取る関数を実行したり、key が存在するのかをチェクしたりさまざまなメタ操作ができます。  
-とりあえず、Proxy = オブジェクトを作る段階でのメタ設定、 Reflect = 既に存在しているオブジェクトに対するメタ操作くらいの理解があれば OK です。
+注意，这里出现了一个新角色 —— Reflect。它与 Proxy 类似，但是 Proxy 是为对象生成了一个具有拦截操作的代理对象，而 Reflect 则是纯粹的通过指定方式操作对象。
 
-続いて reactive.ts です。
+Proxy 和 Reflect 都是 JS 引擎中用于处理对象相关的 API，与我们平时使用对象的方式相比，允许您执行元编程。
+您可以执行各种元操作，例如控制对象的更改、对象属性的读取以及检查 key 是否存在。
+
+目前，我们只需要理解为：Proxy = 创建对象对应的元操作代理对象，Reflect = 对现有对象执行特定的元操作。
+
+然后就是 reactive.ts：
 
 ```ts
 import { mutableHandlers } from './baseHandler'
@@ -547,8 +563,8 @@ export function reactive<T extends object>(target: T): T {
 }
 ```
 
-これで reactive 部分の実装は終わりなので、mount する際に実際にこれらを使ってみましょう。  
-`~/packages/runtime-core/apiCreateApp.ts`です。
+现在 reactive 响应式部分基本上都实现完成了，然后我们在 mount 函数中使用一下。
+位于：`~/packages/runtime-core/apiCreateApp.ts`
 
 ```ts
 import { ReactiveEffect } from '../reactivity'
@@ -566,10 +582,9 @@ export function createAppAPI<HostElement>(
           render(vnode, rootContainer)
         }
 
-        // ここから
+        // 从这里开始
         const effect = new ReactiveEffect(updateComponent)
         effect.run()
-        // ここまで
       },
     }
 
@@ -578,7 +593,7 @@ export function createAppAPI<HostElement>(
 }
 ```
 
-さて、あとは playground で試してみましょう。
+然后，我们在 playground 中验证一下效果：
 
 ```ts
 import { createApp, h, reactive } from 'chibivue'
@@ -604,29 +619,29 @@ app.mount('#app')
 
 ![reactive_example_mistake](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/reactive_example_mistake.png)
 
-あっ………
+emmm ………
 
-ちゃんとレンダリングはされるようになりましたが何やら様子がおかしいです。
-まぁ、無理もなくて、`updateComponent`では毎回要素を作っています。
-なので、2 回目以降のレンダリングの際に古いものはそのままで、新しく要素が作られてしまっているのです。
-なので、レンダリング前に毎回要素を全て消してあげましょう。
+现在渲染看起来是正常的，但是出现了一些新问题。
+这其实也很容易理解，因为在 `updateComponent` 函数中我们每次都会创建一些新的元素。
+所以，从第二次执行（点击按钮更新时）都会创建新的元素并渲染，而之前渲染的旧元素依然还是保持原来的样子。
+因此，在每次渲染之前，我们都需要删除以前的元素。
 
-`~/packages/runtime-core/renderer.ts`の render 関数をいじります。
+那么我们对 `~/packages/runtime-core/renderer.ts` 中的 render 函数进行一些修改。
 
 ```ts
 const render: RootRenderFunction = (vnode, container) => {
-  while (container.firstChild) container.removeChild(container.firstChild) // 全消し処理を追加
+  while (container.firstChild) container.removeChild(container.firstChild) // 添加所有元素的消除处理
   const el = renderVNode(vnode)
   hostInsert(el, container)
 }
 ```
 
-さてこれでどうでしょう。
+现在我们再来看看效果。
 
 ![reactive_example](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/reactive_example.png)
 
-今度は大丈夫そうです!
+这次看起来没什么问题了!
 
-これで reactive に画面を更新できるようになりました!!
+现在，我们已经完成了通过 reactive 来响应式的更新画面了。
 
-ここまでのソースコード: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/030_reactive_system)
+当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/030_reactive_system)
