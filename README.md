@@ -1,12 +1,16 @@
+> **Form `chibivue` from [ubugeeei/chibivue](https://github.com/Ubugeeei/chibivue)**
+
 <p align="center">
   <img src="./book/images/logo/chibivue-img.png" width="600">
 </p>
 
 <div align="center">
 
-### [**Writing Vue.js: Step by Step, from just one line of "Hello, World".**](https://ubugeeei.github.io/chibivue)
+### [**Writing Vue.js: Step by Step, from just one line of "Hello, World".**](https://miyuesc.github.io/chibivue-zh/)
 
-https://ubugeeei.github.io/chibivue
+https://miyuesc.github.io/chibivue-zh/
+
+Japanese Source Repo: https://github.com/Ubugeeei/chibivue, online: https://ubugeeei.github.io/chibivue
 
 </div>
 
@@ -21,47 +25,7 @@ This project began in February 2023 with the goal of simplifying the understandi
 
 Currently, I am still in the process of implementation, but after implementation, I intend to post explanatory articles as well.
 
-(For now, I plan to post Japanese first.)
-
 [example](https://github.com/Ubugeeei/chibivue/tree/main/example/app)
-
-# 👜 Package Manager
-
-This project uses [pnpm](https://pnpm.io/) as a package manager.
-
-And use [ni](https://github.com/antfu/ni) .
-
-```sh
-# if you don't have ni yet
-npm i -g @antfu/ni
-```
-
-# 📔 Online Book
-
-[![Pages Deploy](https://github.com/Ubugeeei/chibivue/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/Ubugeeei/chibivue/actions/workflows/deploy.yml)
-
-> total: 370,000 chars ↑ (japanese)
-
-### book url (GitHub Pages)
-
-English: https://ubugeeei.github.io/chibivue/en
-
-Japaneses: https://ubugeeei.github.io/chibivue
-
-### open book on localhost
-
-```sh
-$ git clone https://github.com/Ubugeeei/chibivue
-$ cd chibivue
-$ ni
-$ nr book:dev
-```
-
-### view on github
-
-[English](https://github.com/Ubugeeei/chibivue/tree/main/book/online-book/src/en) | [Japanese](https://github.com/Ubugeeei/chibivue/tree/main/book/online-book/src)
-<br/>
-<br/>
 
 # 🎥 playground
 
