@@ -35,8 +35,11 @@ const app = createApp({
 ```
 
 其中最明显的问题就是，`increment` 方法执行的时候改动的仅仅只有 `count: ${state.count}` 这部分，但是 `renderVNode` 函数却是将原来的 DOM 元素全部移除之后再重新创建新的元素。
+
 这不禁让我感觉到这种操作完全是在“浪费”。
+
 现在这个 demo 还很小，所以它看起来没有任何问题，但是如果在我们实际开发 Web 应用程序的时候，render 都需要移除所有元素然后重新渲染的话，我们很容易就能想到这会导致性能的急剧下降。
+
 所以，既然我们已经有了 Virtual DOM 这个概念，那么在进行页面更新渲染的时候，就应该只比较 Virtual DOM 之间的差异部分，然后再进行对应的 DOM 操作来更新画面。
 
 这就是我们这一章的主要内容。
@@ -128,7 +131,9 @@ export function h(
 ```
 
 从现在开始就是核心内容了。
+
 在之前的代码中，VNode 的子节点类型一直是 `(Vnode | string)[]`，但是继续将 Text 文本看做一个字符串对于后面的逻辑来说是没有什么意义的，所以我决定将子节点类型统一修改成 `Vnode[]`。
+
 实际上，我们仔细思考一下，文本通常体现在页面上通常也不仅仅就是一个字符串，而是一个 HTML TextElement 元素存在的，它对普通的字符串要多了很多属性以及方法，所以我们可以把它也当做一个 `Vnode` 来处理它的其他属性。
 
 具体的处理方式就是，固定一个 `Text` 的 Symbol 字段做为文本节点的 VNode 的类型。
@@ -192,8 +197,11 @@ export function normalizeVNode(child: VNodeChild): VNode {
 首先我们来看一下源代码中 patch 函数是怎么设计的（目前我们还不需要实现它，只是先理解就好了）。
 
 在使用 patch 函数时，主要是对比新旧两个 vnode 对象的差异，为了方便起见，我这里把两个 vnode 对象分别称为 vnode1 和 vnode2，但是在第一次渲染的时候，vnode1 是不存在的。
+
 也就是说，利用 patch 函数对比 vnode 对象要分为两种情况：首次渲染（利用 vnode2 生成 DOM 元素）和比较 vnode1 与 vnode2 的差异并更新差异。
+
 这两种处理情况分别被命名为 `mount` 和 `patch`。
+
 并且针对不同的类型节点类型，比如 ElementNode 和 TextNode 有不同的处理方案（名称与 `process` 进行组合，用来区分处理不同类型；然后根据 `mount` 或者 `patch` 来区分是首次渲染还是更新差异）。
 
 ```ts
@@ -303,6 +311,7 @@ const mountElement = (vnode: VNode, container: RendererElement) => {
 ```
 
 因为传递的 vnode 对应的是一个元素节点，所以我们还需要把它的子元素也一起处理了。
+
 这里可以使用之前定义的 normalize 相关函数。
 
 ```ts
@@ -317,6 +326,7 @@ const mountChildren = (children: VNode[], container: RendererElement) => {
 现在，我们就已经完成了普通元素的渲染了。
 
 接下来，我们开始实现 Text 文本节点的渲染。这一步只是一个简单的 DOM 操作。
+
 根据之前的说明，我们将其分为了 `mountText` 和 `patchText` 两个函数，但是并没有做太多其他处理。
 想来以后也不会有太大改动，所以这里我们就直接写了。
 
@@ -335,7 +345,9 @@ const processText = (
 ```
 
 暂且写到道理，现在我们应该就已经可以进行元素的首次渲染了，这里我们修改一下 `render` 函数的实现，在里面使用我们刚刚编写的 `patch` 函数，然后再在 playground 中验证一下。
+
 并且到目前为止，我们也需要将 `createAppAPI` 中 `mount` 里面编写的一些逻辑移动到 `render` 函数中，以便我可以更方便的保留两次的 `vnode` 对象。
+
 具体来说，就是将原来传递给 `render` 函数的 `vnode` 对象直接替换为当前的组件 `rootComponent`，然后在 `render` 函数中创建 `ReactiveEffect` 副作用对象与执行首次渲染逻辑。
 
 ```ts
@@ -366,11 +378,6 @@ const render: RootRenderFunction = (rootComponent, container) => {
 }
 ```
 
-ここまでできたら playground で描画できるかどうか試してみましょう！
-
-まだ、patch の処理は行なっていないので画面の更新は行われません。
-
-と、言うことで引き続き patch の処理を書いていきましょう。
 我们可以在 playground 中尝试一下，看看画面是否能够显示出来!
 
 但是因为我们的 patch 部门还没有实现，所以点击按钮时画面不能进行更新。
