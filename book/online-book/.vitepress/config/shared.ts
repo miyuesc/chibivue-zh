@@ -4,7 +4,7 @@ export const sharedConfig = defineConfig({
   title: 'The chibivue Book',
   appearance: 'dark',
   description: '一步一步，从一行 "Hello, World" 开始创建 Vue.js',
-  lang: 'zh-cn',
+  lang: 'zh-CN',
   srcDir: 'src',
   srcExclude: ['__wip'],
   head: [

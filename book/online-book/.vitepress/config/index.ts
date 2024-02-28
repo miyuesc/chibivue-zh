@@ -12,7 +12,7 @@ export default (process.env.NODE_ENV === 'production'
   locales: {
     root: {
       label: '简体中文',
-      lang: 'zh-cn',
+      lang: 'zh-CN',
       link: '/',
       ...zhCnConfig,
     },
