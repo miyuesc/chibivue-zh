@@ -82,8 +82,6 @@ html.dark:root {
     var(--c-blue) 30%,
     var(--c-green-light)
   );
-
-  --vp-nolebase-enhanced-readabilities-spotlight-under-bg-color: rgb(147 228 213 / 10%);
 }
 
 /**
@@ -116,6 +114,22 @@ html.dark:root {
     var(--c-blue) 30%
   );
   --vp-home-hero-image-filter: blur(40px);
+}
+
+/**
+ * Component: Header
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --vp-layout-max-width: 100%;
+}
+
+/**
+ * Component: plugins
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --vp-nolebase-enhanced-readabilities-spotlight-under-bg-color: rgb(147 228 213 / 10%);
 }
 
 .VPHero .VPImage.image-src {
