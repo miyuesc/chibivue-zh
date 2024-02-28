@@ -6,8 +6,8 @@ import {
   NolebaseEnhancedReadabilitiesScreenMenu,
 } from '@nolebase/vitepress-plugin-enhanced-readabilities'
 
-import '@nolebase/vitepress-plugin-enhanced-readabilities/dist/style.css'
 import './main.css'
+import '@nolebase/vitepress-plugin-enhanced-readabilities/dist/style.css'
 
 export default {
   extends: DefaultTheme,
