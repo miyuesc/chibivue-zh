@@ -1,4 +1,4 @@
-> **Form `chibivue` from [ubugeeei/chibivue](https://github.com/Ubugeeei/chibivue)**
+> **Fork `chibivue` from [ubugeeei/chibivue](https://github.com/Ubugeeei/chibivue)**
 
 <p align="center">
   <img src="./book/images/logo/chibivue-img.png" width="600">
