@@ -336,14 +336,17 @@ app.mount('#app')
 
 ## 组件之间的交互
 
-コンポーネントが使えるようになり、再利用が可能になったわけですが、実際には Props や Emits を利用してもっと便利にしたいわけです。
-ここからは Props/Emit によってコンポーネント間のやりとりを行えるように実装を進めていきます。
+现在这些组件已经是可用和可复用的了，但是我真的希望能通过使用 Props 和 Emits 来让它们更加强大。
+
+所以从现在开始，我们将继续实现 Props/Emits 以完成组件之间的通信。
 
 ## Props
 
-まずは props から実装していきます。  
-最終的な開発者インタフェースから考えてみましょう。  
-props は setup 関数の第一引数として渡ってくるようなものを考えてみます。
+首先，先开始实现 `props`。
+
+我们先从希望实现的效果开始，
+
+让我们假设将 `props` 作为 `setup` 函数的第一个参数。
 
 ```ts
 const MyComponent = {
@@ -370,8 +373,11 @@ const app = createApp({
 })
 ```
 
-これを元に ComponentInternalInstance に持たせたい情報を考えてみます。
-`props: { message: { type: String } }`のように指定された props の定義と、props の値を実際に保持するプロパティが必要なので以下のように追加します。
+基于这种使用方式，我们来思考一下 `ComponentInternalInstance` 现在还应该拥有哪些信息。
+
+首先，我们需要一个指定 `props` 参数类型定义（例如 `props: { message: { type: String } }`）的属性，以及一个保存了实际的 `props` 传递的值的属性。
+
+所以我们添加下面这两个参数定义：
 
 ```ts
 export type Data = Record<string, unknown>
@@ -380,13 +386,13 @@ export interface ComponentInternalInstance {
   // .
   // .
   // .
-  propsOptions: Props // `props: { message: { type: String } }` のようなオブジェクトを保持
+  propsOptions: Props // 记录例如 `props: { message: { type: String } }` 这样的类型定义对象
 
-  props: Data // 実際に親から渡されたデータを保持 (今回の場合、 `{ message: "hello" }` のような感じになる)
+  props: Data // 保留父级组件实际传递的数据（在本例中，就是 `{ message: "hello" }`）
 }
 ```
 
-`~/packages/runtime-core/componentProps.ts`というファイルを以下の内容で新たに作成します。
+然后创建一个文件 `~/packages/runtime-core/componentProps.ts` 并写入下面的内容。
 
 ```ts
 export type Props = Record<string, PropOptions | null>
@@ -400,7 +406,7 @@ export interface PropOptions<T = any> {
 export type PropType<T> = { new (...args: any[]): T & {} }
 ```
 
-ユーザーがコンポーネントを実装する際のオプションにも追加します。
+还要给组件的定义中增加一个 `props` 选项定义。
 
 ```ts
 export type ComponentOptions = {
@@ -410,7 +416,7 @@ export type ComponentOptions = {
 }
 ```
 
-オプションから渡された props の定義を createComponentInstance でインスタンスを生成する際に propsOptions にセットします。
+使用 `createComponentInstance` 创建组件实例时，在 `propsOptions` 中设置从组件定义中传递过来的 `props` 的定义。
 
 ```ts
 export function createComponentInstance(
@@ -426,10 +432,11 @@ export function createComponentInstance(
     props: {},
 ```
 
-肝心の instance.props をどう形成するかというと、コンポーネントのマウント時に vnode が保持している props を propsOptions を元にフィルターします。
-フィルターしてできたオブジェクトを reactive 関数によってリアクティブなオブジェクトにし、instance.prop にセットします。
+这里生成 `instance.props` 的关键，就是根据 `propsOptions` 中的定义来过滤掉 `vnode` 对象中带有的 `props` 数据。
 
-この一連の流れを実装する`initProps`という関数を componentProps.ts に実装します。
+然后将过滤得到的数据通过 `reactive` 转换为响应式数据并赋值给 `instance.props`。
+
+我们在 `componentProps.ts` 文件中编写一个 `initProps` 函数来进行这个处理操作。
 
 ```ts
 export function initProps(
@@ -459,7 +466,7 @@ function setFullProps(
 }
 ```
 
-実際に mount 時に initProps を実行し、setup 関数の引数に props を渡してみましょう。
+然后我们要在挂载（`mount`）期间实际执行 `initProps` 并将 `props` 传递给 `setup` 函数。
 
 ```ts
 const mountComponent = (initialVNode: VNode, container: RendererElement) => {
@@ -473,7 +480,7 @@ const mountComponent = (initialVNode: VNode, container: RendererElement) => {
     const component = initialVNode.type as Component;
     if (component.setup) {
       instance.render = component.setup(
-        instance.props // setupに渡す
+        instance.props // 传递给 setup
       ) as InternalRenderFunction;
     }
     // .
@@ -484,12 +491,12 @@ const mountComponent = (initialVNode: VNode, container: RendererElement) => {
 ```ts
 export type ComponentOptions = {
   props?: Record<string, any>
-  setup?: (props: Record<string, any>) => Function // propsを受け取るように
+  setup?: (props: Record<string, any>) => Function // 要接受 props 参数
   render?: Function
 }
 ```
 
-この時点で props を子コンポーネントに渡せるようになっているはずなので playground で確認してみましょう。
+此时，我们应该已经能通过 `props` 像子组件传递参数了，让我们在 playground 中试验一下。
 
 ```ts
 const MyComponent = {
@@ -511,8 +518,7 @@ const app = createApp({
   },
 })
 ```
-
-しかし、実はこれだけでは不十分で、props を変更した際に描画が更新されません。
+但是，实际使用中仅仅这样是远远不够的，当 `props` 更新时画面并不会更新。
 
 ```ts
 const MyComponent = {
@@ -539,7 +545,7 @@ const app = createApp({
 })
 ```
 
-このようなコンポーネントを動作させるために、componentProps.ts に `updateProps` を実装し、コンポーネントが update する際に実行してあげます。
+为了使组件能够进行更新，我们要在 `componentProps.ts` 文件中实现一个 `updateProps` 函数，然后在组件更新时执行它。
 
 `~/packages/runtime-core/componentProps.ts`
 
@@ -576,22 +582,24 @@ const setupRenderEffect = (
           next.component = instance;
           instance.vnode = next;
           instance.next = null;
-          updateProps(instance, next.props); // ここ
+          updateProps(instance, next.props); // 这里
 ```
 
-これで画面が更新されるようになれば OK です。
-これで props を利用することによってコンポーネントにデータを受け渡せるようになりました！　やったね！
+这样画面更新的话就 OK 了。
+
+这样一来，我们就可以通过使用 `props`将数据传递给子组件！
 
 ![props](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/props.png)
 
-当前源代码位于：  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/050_component_system2)
+当前源代码位于：[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/050_component_system2)
 
-ついでと言ってはなんなのですが、本家 Vue は props をケバブケースで受け取ることができるのでこれも実装してみましょう。  
-ここで、新たに `~/packages/shared` というディレクトリを作成し、 `general.ts` を作成します。  
-ここは、runtime-core や runtime-dom に限らず、汎用的な関数を定義する場所です。
-このタイミングで作る意味というのは特別ないのですが、本家に倣ってついでに作っておきます。
-そして、今回は `hasOwn` と `camelize` を実装してみます。
+顺道一提，Vue.js 的源码中还支持 kebab-case 格式的 `props` 配置，所以我们也来实现以下这个功能。
+我们在 `~/packages/shared` 这个文件夹下面创建一个 `general.ts` 的文件。
+这里的内容不仅可以提供给 `runtime-core` 和 `runtime-dom` 使用，还可以后面提供给其他模块，是用来定义通用函数的地方。
+
+我们现在创建这个包实际上没有太大的意义，只是为了和 Vue.js 的源码保持一致。
+
+现在，我们先开始实现 `hasOwn` 和 `camelize` 两个相关函数的实现.
 
 `~/packages/shared/general.ts`
 
@@ -608,7 +616,7 @@ export const camelize = (str: string): string => {
 }
 ```
 
-componentProps.ts で camelize してあげましょう。
+现在我们可以在 `componentProps.ts` 中使用 `camelize` 来处理属性名了。
 
 ```ts
 export function updateProps(
@@ -616,7 +624,7 @@ export function updateProps(
   rawProps: Data | null,
 ) {
   const { props } = instance
-  // -------------------------------------------------------------- ここ
+  // -------------------------------------------------------------- 这里
   Object.entries(rawProps ?? {}).forEach(([key, value]) => {
     props[camelize(key)] = value
   })
@@ -632,7 +640,7 @@ function setFullProps(
   if (rawProps) {
     for (let key in rawProps) {
       const value = rawProps[key]
-      // -------------------------------------------------------------- ここ
+      // -------------------------------------------------------------- 这里
       // kebab -> camel
       let camelKey
       if (options && hasOwn(options, (camelKey = camelize(key)))) {
@@ -643,7 +651,7 @@ function setFullProps(
 }
 ```
 
-これでケバブケースを扱うこともできるようになったはずです。 playground で確認してみましょう。
+这样我们应该可以处理 kebab-case 这种属性了。 让我们在 playground 中试验一下。
 
 ```ts
 const MyComponent = {
@@ -672,10 +680,11 @@ const app = createApp({
 
 ## Emits
 
-props に引き続き emit の実装をしていきます。
-emit の実装は比較的ライトなのですぐに終わります。
+现在我们在 Props 的基础上来实现 Emits。
 
-開発者インタフェース的には emit は setup 関数の第 2 引数から受け取れるような形にします。
+因为 Emits 的实现比较轻量，所以我们可以很快就处理完这部分内容。
+
+从 Vue.js 的使用方式来看，emit 可以从 `setup` 函数的第二个参数中获取到。
 
 ```ts
 const MyComponent: Component = {
@@ -714,9 +723,9 @@ const app = createApp({
 })
 ```
 
-props の時と同じように、`~/packages/runtime-core/componentEmits.ts`というファイルを作成してそこに実装していきます。
+和 props 一样，我们创建一个文件 `~/packages/runtime-core/componentEmits.ts` 然后在这里面实现相关的内容。
 
-emit は単純に、instance に emit 用の関数を実装し、実行時は vnode が持つ props からハンドラを探し実行します。
+Emit 只是在实例中实现一个 `emit` 函数，并在运行过程中在 vnode 的 `props` 中查找对应的处理程序并执行它。
 
 `~/packages/runtime-core/componentEmits.ts`
 
@@ -772,7 +781,7 @@ export function createComponentInstance(
 }
 ```
 
-これを setup 関数に渡してあげれば OK です。
+然后将这个对象传递给 `setup` 函数即可。
 
 `~/packages/runtime-core/componentOptions.ts`
 
@@ -782,7 +791,7 @@ export type ComponentOptions = {
   setup?: (
     props: Record<string, any>,
     ctx: { emit: (event: string, ...args: any[]) => void },
-  ) => Function // ctx.emitを受け取れるように
+  ) => Function // 传递 ctx 已接收 emit
   render?: Function
 }
 ```
@@ -797,17 +806,18 @@ const mountComponent = (initialVNode: VNode, container: RendererElement) => {
 
     const component = initialVNode.type as Component;
     if (component.setup) {
-      // emitを渡してあげる
+      // 把 emit 传递过去
       instance.render = component.setup(instance.props, {
         emit: instance.emit,
       }) as InternalRenderFunction;
     }
 ```
 
-先ほど想定していた開発者インタフェースの例で動作を確認してみましょう！  
-ちゃんと動いていればこれで props/emit によるコンポーネント間のやりとりが行えるようになりました！
+现在就可以使用我们刚刚编写的那部分使用代码来检查这个功能了。
+
+如果它们能够正常工作，那么我们就可以使用 `props/emit` 来完成组件之间的通信了。
 
 当前源代码位于：  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/050_component_system3)
 
-<!-- TODO: veiについての説明を書く -->
+<!-- TODO: 关于 vei 的说明 -->
