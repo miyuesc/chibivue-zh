@@ -1,17 +1,19 @@
-# 小さいテンプレートコンパイラ
+# 简易的模板编译器
 
-## 実はここまでで動作に必要なものは揃った(?)
+## 实际上，目前我们需要实现的东西大致都已经完成了(?)
 
-これまで、 Reactivity System や Virtual DOM 、Component などを実装してきました。  
-これらは非常に小さなもので、実用的なものではないのですが、実は動作に必要な構成要素の全体像としては一通り理解できたと言っても過言ではないのです。  
-それぞれの要素自体の機能は足りていないですが、浅〜〜〜〜〜く 1 周した感じです。
+到目前为止，我们已经实现了 Reactivity System 响应式系统、Virtual DOM 虚拟 DOM 和 Component 组件系统。
+虽然已实现的这些内容都很简单并且不是很实用，但是毫不夸张的说，我们对 Vue.js 的整体已经有了大致的了解。
+每个部分都缺乏完整的功能，给我们的感觉就像刚刚要接近终点的位置，但始终没有达到终点一样。
 
-このチャプターからはより Vue.js に近づけるためにテンプレートの機能を実装するのですが、これらはあくまで DX の改善のためのものであり、ランタイムに影響を出すものではありません。  
-もう少し具体的にいうと、DX の向上のために開発者インタフェースを拡張し、「最終的には今まで作った内部実装に変換」します。
+所以从本章开始，我们将实现模板功能，让它更加接近 Vue.js。当然这些只是为了改进 DX（Developer Experience），并不会影响运行时的内容。
+更具体地说，我们将扩展开发者使用接口以改进 DX，并“最终将其转换为我们迄今为止所做的内部实现支持的结构”。
 
-## 今回実現したい開発者インタフェース
+> 译者注：DX 概念可以参考 [What Is DX? (Developer Experience)](https://medium.com/swlh/what-is-dx-developer-experience-401a0e44a9d9)
 
-今現時点ではこのような開発者インタフェースになっています。
+## 这次想要实现的开发者接口
+
+现在我们完成的是这样的开发者界面。
 
 ```ts
 const MyComponent: Component = {
@@ -50,16 +52,19 @@ const app = createApp({
 })
 ```
 
-現状だと、View の部分は h 関数を使って構築しています。より生の HTML に近づけるために template オプションに template を描けるようにしたいです。
-とは言っても、いきなり色々モリモリで実装するのは大変なので、少し機能を絞って作ってみます。とりあえず、以下のようなタスクに分割してやっていきます。
+目前，View 视图部分是使用 `h` 函数构建的。为了更接近原始的 HTML 的写法，我想在 template 选项中编写 HTML 格式的模板。
 
-1. 単純なタグとメッセージ、静的な属性を描画できるように
+话虽如此，如果我们一次性实现各种功能是很困难的，所以稍微缩减一下功能来完成。
+
+总之，我们分成以下的任务进行。
+
+1. 能够绘制简单的标签、消息和静态属性
 
 ```ts
 const app = createApp({ template: `<p class="hello">Hello World</p>` })
 ```
 
-2. もう少し複雑な HTML を描画できるように
+2. 能够渲染复杂一些的 HTML 内容
 
 ```ts
 const app = createApp({
@@ -72,7 +77,7 @@ const app = createApp({
 })
 ```
 
-3. setup 関数で定義したものを使えるようにしたい
+3. 能够使用 `setup` 函数中定义的内容。
 
 ```ts
 const app = createApp({
@@ -94,45 +99,50 @@ const app = createApp({
 })
 ```
 
-それぞれでさらに小さく分割はしていくのですが、おおまかにこの 3 ステップに分割してみます。  
-まずは 1 からやっていきましょう。
+在后面的实现过程中我还会细分成更小的步骤，但是这里我将它大致分为这三个部分。
 
-## テンプレートコンパイラの第一歩
+现在，我们从 1 开始吧。
 
-さて、今回目指す開発者インタフェースは以下のようなものです。
+## 实现模板编译器的第一步
 
-```ts
-const app = createApp({ template: `<p class="hello">Hello World</p>` })
-```
-
-ここでまず、コンパイラとはいったいなんなのかという話だけしておきます。  
-ソフトウェアを書いているとたちまち「コンパイラ」という言葉を耳にするかと思います。  
-「コンパイル」というのは翻訳という意味で、ソフトウェアの領域だとより高級な記述から低級な記述へ変換する際によくこの言葉を使います。
-この本の最初の方のこの言葉を覚えているでしょうか?
-
-> ここでは便宜上、生の JS に近ければ近いほど「低級な開発者インタフェース」と呼ぶことにします。  
-> そして、ここで重要なのが、「実装を始めるときは低級なところから実装していく」ということです。  
-> それはなぜかというと、多くの場合、高級な記述は低級な記述に変換されて動いているからです。  
-> つまり、1 も 2 も最終的には内部的に 3 の形に変換しているのです。  
-> その変換の実装のことを「コンパイラ (翻訳機)」と呼んでいます。
-
-では、このコンパイラというものがなぜ必要なのかということについてですが、それは「開発体験を向上させる」というのが大きな目的の一つです。  
-最低限、動作するような低級なインタフェースが備わっていれば、機能としてはそれらだけで開発を進めることは可能です。  
-ですが、記述がわかりづらかったり、機能に関係のない部分を考慮する必要が出てきたりと色々と面倒な問題がでてくるのはしんどいので、利用者の気持ちを考えてインタフェースの部分だけを再開発します。
-
-この点で、Vue.js が目指している点は、「生の HTML のように書けかつ、Vue が提供する機能(ディレクティブなど)を活用して便利に View を書く」と言ったところでしょうか。
-そして、そこの行き着く先が SFC といったところでしょうか。
-昨今では jsx/tsx の流行もあり、Vue はもちろんこれらも開発者インタフェースの選択肢として提供しています。が、今回は Vue 独自の template を実装する方向でやってみようと思います。
-
-長々と、文章で説明してしまいましたが、結局今回やりたいことは、
-
-このようなコードを、
+现在，我们要实现的开发者界面如下。
 
 ```ts
 const app = createApp({ template: `<p class="hello">Hello World</p>` })
 ```
 
-このように翻訳(コンパイル)する機能を実装したいです。
+首先，我们先理解一下“编译器”到底是什么。
+
+当我们编写软件时，有可能会听到“编译器”这个词。“编译”的意思也可以理解为“翻译”，在软件开发领域，通常用来表示“从高层语法描述转化为低层的语法描述的转化过程”。
+
+你还记得本书开头的这句话吗？
+
+> 为图简便，我将其称为“**低级开发者接口**”，因为它更加接近于原生的 JS。
+> 当然这也是最重要的一部分，需要“从最基础的低级接口的实现开始”。
+> 因为在很多情况下，高级语法都需要被转化成低级语法。
+> 也就是说，1 和 2 最终也会被转换成 3 的形式，这部分转化功能，被称为 **编译器**。
+
+现在我们应该就能理解为什么需要这个编译器了吧，它的一大目的就是“改善开发体验”。毕竟就算没有编译器，我们也已经提供了一个可用的“低级”开发者接口，开发者也可以用这些功能来进行开发。
+
+但是在实现编译器时，如果我们考虑进去很多与功能无关的部分，那就会导致文档描述很难理解，或者使用上非常麻烦和繁琐，出现各种问题。
+
+因此我们也要考虑开发者的感受，只开发关于界面的部分。
+
+对此，Vue.js 的目标就是“像写原生的 HTML 一样，并且可以灵活使用用 Vue 提供的功能 (指令等) 更方便地编写 View 视图”。
+并且，最终的目标就是实现 SFC。
+
+虽然，现在随着 jsx/tsx 的流行，Vue 也提供了类似的开发者选项。
+但是，这次我依然想在 Vue 如何实现 template 解析的方向上尝试一下。
+
+这章我用了很长的篇幅来解释了我想做的事情。
+
+就像这样的代码：
+
+```ts
+const app = createApp({ template: `<p class="hello">Hello World</p>` })
+```
+
+我想实现一个这样的翻译（编译）功能，也就是翻译为这样的结果。
 
 ```ts
 const app = createApp({
@@ -142,7 +152,7 @@ const app = createApp({
 })
 ```
 
-もう少しスコープを狭めるなら、この部分です。
+如果你想把范围再缩小一点，这就是这部分。
 
 ```ts
 ;`<p class="hello">Hello World</p>`
@@ -150,18 +160,19 @@ const app = createApp({
 h('p', { class: 'hello' }, ['Hello World'])
 ```
 
-いくつかのフェーズに分けて、段階的に実装を進めていきましょう。
+我们分几个阶段来逐步实现。
 
-## 小さいコンパイラを実装してみる。
+## 尝试实现简易编译器。
 
-## 実装アプローチ
+## 实现方式
 
-基本的なアプローチとしては、template オプションで渡された文字列を操作して特定の関数を生成する感じです。  
-コンパイラを３つの要素に分割してみます。
+基础思想是通过操作 `template` 模板选项中传递的字符串来生成特定的函数。
+
+让我们将编译器的实现分为三个部分。
 
 ### 解析
 
-解析(parse)は渡された文字列から必要な情報を解析します。以下のようなイメージをしてもらえれば OK です。
+解析(`parse`)方法，负责从传递的字符串中分析所需的信息。如果您能得到如下所示的结果就差不多了。
 
 ```ts
 const { tag, props, textContent } = parse(`<p class="hello">Hello World</p>`)
@@ -170,45 +181,46 @@ console.log(prop) // { class: "hello" }
 console.log(textContent) // "Hello World"
 ```
 
-### コード生成
+### 代码生成
 
-コード生成(codegen)では parse の結果をもとにコード(文字列)を生成します。
+代码生成(`codegen`)方法负责根据 `parse` 的结果生成代码 (字符串)。
 
 ```ts
 const code = codegen({ tag, props, textContent })
 console.log(code) // "h('p', { class: 'hello' }, ['Hello World']);"
 ```
 
-### 関数オブジェクト生成
+### 函数对象生成
 
-codegen で生成したコード(文字列)をもとに実際に実行可能な関数を生成します。
-JavaScript では、Function コンストラクタを利用することで文字列から関数を生成することが可能です。
+根据 `codegen` 生成的代码 (字符串) 生成实际可执行的函数。
+在 JavaScript 中，可以通过使用 Function 构造函数从字符串生成函数。
 
 ```ts
 const f = new Function('return 1')
 console.log(f()) // 1
 
-// 引数を定義する場合はこんな感じ
+// 这样定义参数
 const add = new Function('a', 'b', 'return a + b')
 console.log(add(1, 1)) // 2
 ```
 
-これを利用して関数を生成します。
-ここで一点注意点があるのですが、生成した関数はその中で定義された変数しか扱うことができないので、h 関数などの読み込みもこれに含んであげます。
+我们可以利用这个来生成函数。
+
+这里有一点需要注意，生成的函数只能处理参数中定义的变量，`h` 函数等的读取也包含在这个对象中。
 
 ```ts
 import * as runtimeDom from './runtime-dom'
 const render = new Function('ChibiVue', code)(runtimeDom)
 ```
 
-こうすると、ChibiVue という名前で runtimeDom を受け取ることができるので、codegen の段階で以下のように h 関数を読み込めるようにしておきます。
+这样的话，因为我们使用了 `ChibiVue` 这个名字来接收了 `runtimeDom` 导出的所有内容，所以在 `codegen` 的阶段可以直接使用如下的方式获取 `h` 函数。
 
 ```ts
 const code = codegen({ tag, props, textContent })
 console.log(code) // "return () => { const { h } = ChibiVue; return h('p', { class: 'hello' }, ['Hello World']); }"
 ```
 
-つまり、先ほど、
+也就是说，刚才的
 
 ```ts
 ;`<p class="hello">Hello World</p>`
@@ -216,7 +228,7 @@ console.log(code) // "return () => { const { h } = ChibiVue; return h('p', { cla
 h('p', { class: 'hello' }, ['Hello World'])
 ```
 
-のように変換すると言いましたが、正確には、
+更准确的说，我们需要的是实现这样的内容
 
 ```ts
 ;`<p class="hello">Hello World</p>`
@@ -231,8 +243,9 @@ ChibiVue => {
 }
 ```
 
-のように変換し、runtimeDom を渡して render 関数を生成します。
-そして、codegen の責務は
+转换为接收 `runtimeDom` 来生成 `render` 渲染函数对应的字符串。
+
+`codegen` 函数的职责就是
 
 ```ts
 const code = `
@@ -243,11 +256,13 @@ const code = `
 `
 ```
 
-という文字列を生成することです。
+生成函数字符串。
 
-## 実装
+## 实现
 
-アプローチが理解できたら早速実装してみましょう。`~/packages/src`に`compiler-core`というディレクトリを作ってそこに`index.ts`, `parse.ts`, `codegen.ts`を作成します。
+既然理清了思路，我们就开始实现吧。
+
+首先在 `~/packages` 的目录中创建一个 `compiler-core` 的目录，并且在目录下创建 `index.ts`、 `parse.ts`、 `codegen.ts` 三个文件。
 
 ```sh
 pwd # ~/
@@ -257,10 +272,9 @@ touch packages/compiler-core/parse.ts
 touch packages/compiler-core/codegen.ts
 ```
 
-index.ts は例の如く export するためだけに利用します。
+index.ts 如之前的说明一样，仅用于 export 导出。
 
-それでは parse から実装していきましょう。
-`packages/compiler-core/parse.ts`
+那么我们先从 `parse` 函数开始吧~ `packages/compiler-core/parse.ts`：
 
 ```ts
 export const baseParse = (
@@ -281,10 +295,9 @@ export const baseParse = (
 }
 ```
 
-正規表現を使った非常に簡素なパーサではありますが、初めての実装としては十分です。
+虽然是使用正则表达式的非常简单的解析器，但作为首次实现已经足够了。
 
-続いて、コードの生成です。codegen.ts に実装していきます。
-`packages/compiler-core/codegen.ts`
+接下来是代码生成函数。我们在 codegen.ts 中实现。`packages/compiler-core/codegen.ts`：
 
 ```ts
 export const generate = ({
@@ -305,8 +318,10 @@ export const generate = ({
 }
 ```
 
-それでは、これらを組み合わせて template から関数の文字列を生成する関数を実装します。`packages/compiler-core/compile.ts`というファイルを新たに作成します。
-`packages/compiler-core/compile.ts`
+那么，将它们组合起来就可以实现从 `template` 字符串生成渲染函数字符串的函数了。
+我们创建一个新的文件 `packages/compiler-core/compile.ts`。
+
+`packages/compiler-core/compile.ts` 的内容：
 
 ```ts
 import { generate } from './codegen'
@@ -319,14 +334,17 @@ export function baseCompile(template: string) {
 }
 ```
 
-特に難しくないかと思います。実は、compiler-core の責務はここまでです。
+我想这部分不是特别难。其实，`compiler-core` 部分的职责就到此为止了。
 
-## ランタイム上のコンパイラとビルドプロセスのコンパイラ
+## 运行时编译器和构建过程中的编译器
 
-実は Vue にはコンパイラが 2 種類存在しています。  
-それは、ランタイム上(ブラウザ上)で実行されるものと、ビルドプロセス上(Node.js など)で実行されるものです。  
-具体的には、ランタイムの方は template オプションまたは html として与えられるテンプレートのコンパイラ、ビルドプロセス上は SFC(や jsx)のコンパイラです。  
-template オプションとはちょうど今我々が実装しているものです。
+实际上 Vue 有两种类型的编译器。
+
+有些在运行时（在浏览器中）运行，有些在构建过程（例如 Node.js）上运行。
+
+运行时编译器负责编译 `template` 模板选项或以 HTML 形式提供的模板，而构建过程编译器负责编译 SFC（或 JSX）。
+
+我们当前正在实现的模板选项编译属于前一类。
 
 ```ts
 const app = createApp({ template: `<p class="hello">Hello World</p>` })
@@ -337,7 +355,7 @@ app.mount('#app')
 <div id="app"></div>
 ```
 
-html として与えられるテンプレートというのは html に Vue の template を書くような開発者インタフェースです。(CDN 経由などでサクッと HTML に盛り込むのに便利です。)
+或者是一个以 HTML 形式提供模板选项的“开发者界面”，您可以在其中使用 HTML 编写 Vue 模板（方便通过 CDN 等方式快速合并渲染内容到原 HTML 中）。
 
 ```ts
 const app = createApp()
@@ -351,9 +369,9 @@ app.mount('#app')
 </div>
 ```
 
-これら 2 つはどちらも template をコンパイルする必要がありますが、コンパイルはブラウザ上で実行されます。
+这两种方式都需要将 template 模板进行编译，但是编译过程是在浏览器上进行的。
 
-一方で、SFC のコンパイルはプロジェクトのビルド時に行われ、ランタイム上にはコンパイル後のコードしか存在していません。(開発環境に vite や webpack 等のバンドラを用意する必要があります。)
+另一方面，则是发生在工程构建时的 SFC 文件编译，运行时部分只存在编译后的代码。（开发环境需要准备 Vite、Webpack 等打包工具）
 
 ```vue
 <!-- App.vue -->
@@ -377,10 +395,13 @@ app.mount('#app')
 <div id="app"></div>
 ```
 
-そして、注目するべき点はどっちのコンパイラにせよ、共通の処理という点です。  
-この共通部分のソースコードを実装しているのが `compiler-core` ディレクトリです。  
-そして、ランタイム上のコンパイラ、SFC コンパイラはそれぞれ`compiler-dom`, `compiler-sfc`というディレクトリに実装されています。  
-ぜひ、ここらでこの図を見返してみてください。
+但是，值得注意的是无论是哪种编译，核心处理逻辑都是通用的。
+
+也就是我们在 `compiler-core` 中实现的这部分公共代码。
+
+运行时编译器和 SFC 编译器分别在目录 `compiler-dom` 和 `compiler-sfc` 中实现。
+
+请看下图。
 
 ```mermaid
   flowchart LR
@@ -410,10 +431,11 @@ app.mount('#app')
 
 https://github.com/vuejs/core/blob/main/.github/contributing.md#package-dependencies
 
-## 実装の続き
+## 继续实现
 
-少し話が飛んでしまいましたが、実装の続きをやっていきましょう。
-先ほどの話を考慮すると、今作っているのはランタイム上で動作するコンパイラなので、`compiler-dom`を作っていくのが良さそうです。
+刚刚讨论多了一点，现在我们接着实现后面的内容。
+
+考虑到我们刚才说过我们现在实现的是运行时的编译器，所以我们创建一个 `compiler-dom` 目录更好一点。
 
 ```sh
 pwd # ~/
@@ -421,7 +443,7 @@ mkdir packages/compiler-dom
 touch packages/compiler-dom/index.ts
 ```
 
-`packages/compiler-dom/index.ts`に実装します。
+`packages/compiler-dom/index.ts` 的实现。
 
 ```ts
 import { baseCompile } from '../compiler-core'
@@ -431,11 +453,13 @@ export function compile(template: string) {
 }
 ```
 
-「えっっっっ、これじゃあただ codegen しただけじゃん。関数の生成はどうするの？」と思ったかも知れません。  
-実はここでも関数の生成は行なっておらず、どこで行うかというと`package/index.ts`です。(本家のコードで言うと [packages/vue/src/index.ts](https://github.com/vuejs/core/blob/main/packages/vue/src/index.ts) です)
+现在你可能会想“嗯，这样的话只是 `codegen` 代码生成而已。函数的生成该怎么办？”
 
-`package/index.ts`を実装したいところですが、ちょいと下準備があるので先にそちらからやります。
-その下準備というのは、`package/runtime-core/component.ts`にコンパイラ本体を保持する変数と、登録用の関数の実装です。
+其实最后的函数不是在这里生成的，而是在 `package/index.ts` 中完成的（源代码中的 [packages/vue/src/index.ts](https://github.com/vuejs/core/blob/main/packages/vue/src/index.ts)）。
+
+我们后面会实现 `package/index.ts`，但是现在需要做一些准备工作。
+
+首先在 `package/runtime-core/component.ts` 创建一个变量用来保存编译器对象，并实现一个注册函数用来注册编译器对象。
 
 `package/runtime-core/component.ts`
 
@@ -448,7 +472,7 @@ export function registerRuntimeCompiler(_compile: any) {
 }
 ```
 
-それでは、`package/index.ts`で関数の生成をして、登録してあげましょう。
+现在，让我们在 package/index.ts 创建一个编译器并注册它。
 
 ```ts
 import { compile } from './compiler-dom'
@@ -467,7 +491,7 @@ export * from './runtime-dom'
 export * from './reactivity'
 ```
 
-※ runtimeDom には h 関数を含める必要があるので `runtime-dom`で export するのを忘れないようにしてください。
+※ `runtime-dom` 必须要包含 `h` 函数，所以不要忘记在 `runtime-dom` 导出它。
 
 ```ts
 export { h } from '../runtime-core'
@@ -585,5 +609,5 @@ app.mount('#app')
 
 ちゃんと実装できているようです！
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/060_template_compiler)
