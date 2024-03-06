@@ -497,8 +497,9 @@ export * from './reactivity'
 export { h } from '../runtime-core'
 ```
 
-さて、コンパイラの登録ができたので実際にコンパイルを実行したいです。
-コンポーネントのオプションの型に template がなくては始まらないのでとりあえず template は生やしておきます。
+现在编译器已经注册好了，我想实际用它来编译一下。
+
+但是组件的选项中如果没有 `template` 的话是无法进入模板编译的，所以我们需要先把 `template` 定义好。
 
 ```ts
 export type ComponentOptions = {
@@ -512,14 +513,14 @@ export type ComponentOptions = {
 }
 ```
 
-肝心のコンパイルですが、renderer を少しリファクタする必要があります。
+最重要的就是编译了，所以我们还需要稍微重构一下 `renderer` 渲染器。
 
 ```ts
 const mountComponent = (initialVNode: VNode, container: RendererElement) => {
   const instance: ComponentInternalInstance = (initialVNode.component =
     createComponentInstance(initialVNode))
 
-  // ----------------------- ここから
+  // ----------------------- 从这里开始
   const { props } = instance.vnode
   initProps(instance, props)
   const component = initialVNode.type as Component
@@ -528,15 +529,15 @@ const mountComponent = (initialVNode: VNode, container: RendererElement) => {
       emit: instance.emit,
     }) as InternalRenderFunction
   }
-  // ----------------------- ここまで
+  // ----------------------- 到此结束
 
   setupRenderEffect(instance, initialVNode, container)
 }
 ```
 
-`mountComponent`の上記に示した部分を`package/runtime-core/component.ts`に切り出します。
+将上面的 `mountComponent` 方法提取到 `package/runtime-core/component.ts` 中。
 
-`package/runtime-core/component.ts`
+`package/runtime-core/component.ts`：
 
 ```ts
 export const setupComponent = (instance: ComponentInternalInstance) => {
@@ -563,7 +564,7 @@ const mountComponent = (initialVNode: VNode, container: RendererElement) => {
 }
 ```
 
-それでは、setupComponent 内でコンパイルを実行していきましょう。
+然后，我们在 `setupComponent` 函数中来运行编译器进行模板编译。
 
 ```ts
 export const setupComponent = (instance: ComponentInternalInstance) => {
@@ -577,7 +578,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
     }) as InternalRenderFunction
   }
 
-  // ------------------------ ここ
+  // ------------------------ 这里
   if (compile && !component.render) {
     const template = component.template ?? ''
     if (template) {
@@ -587,7 +588,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
 }
 ```
 
-これで template オプションで渡した簡素な HTML がコンパイルできるようになったはずなので playground で試してみましょう！
+现在我们应该能够编译模板选项中传递的简单 HTML 字符串了。让我们在 Playground 上尝试一下！
 
 ```ts
 const app = createApp({ template: `<p class="hello">Hello World</p>` })
@@ -596,7 +597,9 @@ app.mount('#app')
 
 ![simple_template_compiler](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/simple_template_compiler.png)
 
-無事に動いているようです。同じ構造であればコンパイルできるはずなので、少しいじってみて反映されるか確認してみましょう。
+看起来运行良好。
+
+如果结构一样的话，应该可以编译，所以我们来尝试一下，看看能否生效。
 
 ```ts
 const app = createApp({
@@ -607,7 +610,7 @@ app.mount('#app')
 
 ![simple_template_compiler2](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/simple_template_compiler2.png)
 
-ちゃんと実装できているようです！
+看起来已经实现了！
 
 当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/060_template_compiler)
