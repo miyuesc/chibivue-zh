@@ -1,14 +1,16 @@
-# Single File Component で開発したい
+# 希望用 SFC(单文件组件) 开发
 
-## SFC、どうやって実現している？
+## SFC 该怎么实现呢？
 
-## 目標物
+## 目标
 
-ここからはいよいよ SFC(Single File Component)の対応をやっていきます。  
-さて、どのように対応していきましょう。SFC はテンプレートと同様、開発時に使われるものでランタイム上には存在しません。  
-テンプレートの開発を終えたみなさんにとっては何をどのようにコンパイルすればいいかは簡単な話だと思います。
+从现在开始，我们终于要准备支持 SFC(Single File Component) 单文件组件的实现了。
 
-以下のような SFC を
+那么，我们应该如何去实现它呢？
+SFC 和模板一样，只是在开发的时候使用的，在实际的运行时中是不存在的。
+但是对于那些已经实现过模板解析的人来说，我认为很容易就能知道需要编译什么以及如何编译。
+
+SFC 的使用如下：
 
 ```vue
 <script>
@@ -48,7 +50,7 @@ export default {
 </style>
 ```
 
-以下のような JS のコードに変換すれば良いのです。
+我们将它转换成如下的 JS 代码即可。
 
 ```ts
 export default {
@@ -75,25 +77,26 @@ export default {
 }
 ```
 
-(えっスタイルは!? と思った方もいるかもしれませんが、一旦そのことは忘れて template と script について考えてみましょう。)
+(样式（style）怎么处理!? 很多人可能会有这个疑问，但是我们现在先忽略这一点，专注于 template 与 script。)
 
-## どのタイミングでいつどうやってコンパイルするの？
+## 我该什么时候编译以及如何编译它？
 
-結論から言ってしまうと、「ビルドツールが依存を解決するときにコンパイラを噛ませる」です。
-多くの場合 SFC は他のファイルから import して使います。
-この時に、`.vue` というファイルが解決される際にコンパイルをして、結果を App にバインドさせるようなプラグインを書きます。
+结论就是“在当构建工具在解析处理依赖关系的时候我们开始进行解析和编译”。
+因为大多数情况下，SFC 是通过其他文件 import 导入来进行使用的。
+这时，我们需要编写一个构建工具的插件，在解析到 `.vue` 这样的文件时将其编译并将结果绑定到 `App` 上。
 
 ```ts
-import App from './App.vue' // App.vueが読み込まれるときにコンパイル
+import App from './App.vue' // 读取 App.vue 的时候对 App.vue 进行编译
 
 const app = createApp(App)
 app.mount('#app')
 ```
 
-さまざまなビルドツールがありますが、今回は vite のプラグインを書いてみます。
+构建工具有很多种，但是这次我们主要为 Vite 编写一个插件。
 
-vite のプラグインを書いたことのない方も少ないと思うので、まずは簡単なサンプルコードでプラグインの実装に慣れてみましょう。
-とりあえず簡単な vue のプロジェクトを作ってみます。
+我想有很多人还从来没有编写过 Vite 插件，所以通过一个简单的示例来学习如何编写一个 Vite 插件。
+
+现在我们先创建一个简单的 Vue 项目。
 
 ```sh
 pwd # ~
@@ -106,7 +109,7 @@ cd plugin-sample
 ni
 ```
 
-作った PJ の vite.config.ts を見てみましょう。
+让我们看一下刚刚创建的项目中的 `vite.config.ts` 文件。
 
 ```ts
 import { defineConfig } from 'vite'
@@ -118,10 +121,13 @@ export default defineConfig({
 })
 ```
 
-何やら@vitejs/plugin-vue を plugin に追加しているのがわかるかと思います。  
-実は、vite で vue の PJ を作るとき、SFC が使えているのはこれのおかげなのです。  
-このプラグインには SFC のコンパイラが vite のプラグインの API に沿って実装されていて、Vue ファイルを JS ファイルにコンパイルしています。  
-このプロジェクトで簡単なプラグインを作ってみましょう。
+可以看到在 `plugin` 插件选项中添加了一个 `@vitejs/plugin-vue` 的插件。
+
+事实上，这就是为什么我用 Vite 创建 Vue 项目时能直接使用 SFC 的原因。
+
+该插件有一个根据 Vite 提供的插件 API 实现的 SFC 编译器，能够将 `.vue` 文件编译为 JS 文件。
+
+让我们用这个项目创建一个简单的插件。
 
 ```ts
 import { defineConfig, Plugin } from 'vite'
@@ -153,17 +159,20 @@ function myPlugin(): Plugin {
 }
 ```
 
-myPlugin という名前で作ってみました。  
-簡単なので説明しなくても読める方も多いと思いますが一応説明しておきます。
+我创建了一个名为 `myPlugin` 的插件。
+这个代码很简单，我想大部分人应该都能看懂，但是我这里还是要解释一下。
 
-プラグインは vite が要求する形式に合わせます。いろんなオプションがありますが、今回は簡単なサンプルなので transform オプションのみを使用しました。  
-他は公式ドキュメント等を眺めてもらえるのがいいかと思います。https://vitejs.dev/guide/api-plugin.html
+该插件符合 Vite 插件的基本要求。但是由于这只是一个简单示例，所以我只使用了 `transform` 选项。
+至于其他的内容，我想还是直接看官方文档要好一点。
+https://vitejs.dev/guide/api-plugin.html
 
-transform では`code`と`id`を受け取ることができます。code はファイルの内容、id はファイル名と思ってもらって良いです。
-戻り値として、code というプロパティに成果物を突っ込みます。  
-あとは id によってファイルの種類ごとに処理を書いたり、code をいじってファイルの内容を書き換えたりすれば OK です。  
-今回は、`*.sample.js`というファイルに対して、ファイルの内容の先頭に console を 100 個数仕込むように書き換えてみました。  
-では実際に、適当な plugin.sample.js を実装をして確認してみます。
+`transform` 选项是个函数，接收 `code` 和 `id` 两个参数。
+你可以将 `code` 视为文件内容，将 `id` 视为文件名。至于转换结果，你可以将它放在返回值对象中作为 `code` 属性。
+然后根据 `id` 判断不同的文件类型来进行不同的处理，或者通过修改 `code` 返回值来重写文件内容。
+
+这次，我们尝试为 `*.sample.js` 这种命名格式的文件，在文件开头添加 100 次 `console` 打印。
+
+现在，让我们编写一个 `plugin.sample.js` 的文件来检查一下它是否正常工作。
 
 ```sh
 pwd # ~/plugin-sample
@@ -199,7 +208,7 @@ import './plugin.sample.js' // 追加
 createApp(App).mount('#app')
 ```
 
-ブラウザで確認してみましょう。
+让我们在浏览器中确认一下。
 
 ```sh
 pwd # ~/plugin-sample
@@ -210,23 +219,23 @@ nr dev
 
 ![sample_vite_plugin_source](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/sample_vite_plugin_source.png)
 
-ちゃんとソースコードが改変されていることがわかります。
+可以看到源代码确实已经被修改了。
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler)
 
-## SFC コンパイラを実装していく
+## 实现 SFC 编译器
 
-## 準備
+## 准备
 
-先ほど作ったサンプルのプラグインなのですが、もう不要なので消してしまいましょう
+这是我之前创建的示例插件，但现在我们不再需要它了，所以我们将其删除掉。
 
 ```sh
 pwd # ~
 rm -rf ./plugin-sample
 ```
 
-plugin の本体なのですが、本来これは vuejs/core の範囲外なので packages に`@extensions`というディレクトリを切ってそこに実装していきます。
+这是插件的主体，但由于这本来就超出了 vuejs/core 的范围，所以我们将在 `~/packages` 中创建一个名为 `@extensions` 的目录并在那里实现它。
 
 ```sh
 pwd # ~
@@ -250,8 +259,11 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-ここから SFC のコンパイラを実装していくのですが、実態がないとイメージが湧きづらいかと思うので playground を実装してみて、動かしながらやっていこうかと思います。  
-簡単な SFC とその読み込みを行います。
+现在，我们来实现 SFC 编译器。
+然而，如果没有任何实质内容我们会很难想象出插件的运行效果，
+所以让我们实现一个 playground 并在运行它，与我们的开发同时进行。
+
+我们创建一个简单的 SFC 文件然后加载它。
 
 ```sh
 pwd # ~
@@ -624,7 +636,7 @@ export default function vitePluginChibivue(): Plugin {
 
 無事にパースできているようです。やったね！
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler2)
 
 ## template 部分のコンパイル
@@ -825,7 +837,7 @@ const genInterpolation = (
 
 上手くコンパイルできているようです。あとは同じ要領で、どうにかして script を引っこ抜いて default exports に突っ込めば OK です。
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler3)
 
 ## script 部分のコンパイル
@@ -1346,5 +1358,5 @@ export default function vitePluginChibivue(): Plugin {
 
 これで SFC が使えるようになりました！
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler4)
