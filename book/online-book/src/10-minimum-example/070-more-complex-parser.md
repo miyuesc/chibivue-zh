@@ -189,7 +189,7 @@ export const baseParse = (
 
 ## parseChildren
 
-順番的には、(parseChildren) -> (paseElement または parseText)とパースを進めていきます。
+順番的には、(parseChildren) -> (parseElement または parseText)とパースを進めていきます。
 
 少し長いですが、parseChildren の実装からです。説明はソースコード中のコメントアウトで行います。
 
