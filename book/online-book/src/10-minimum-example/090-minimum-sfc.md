@@ -235,7 +235,7 @@ pwd # ~
 rm -rf ./plugin-sample
 ```
 
-这是插件的主体，但由于这本来就超出了 vuejs/core 的范围，所以我们将在 `~/packages` 中创建一个名为 `@extensions` 的目录并在那里实现它。
+这是插件的主体，但由于这本来就超出了 vuejs/core （核心功能）的范围，所以我们将在 `~/packages` 中创建一个名为 `@extensions` 的目录并在那里实现它。
 
 ```sh
 pwd # ~
@@ -357,17 +357,17 @@ export default defineConfig({
 })
 ```
 
-この状態で起動してみましょう。
+让我们就这样尝试运行一下。
 
 ![vite_error](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/vite_error.png)
 
-もちろんエラーになります。やったね( ？　)
+报错了对吧？但是这是正常的。
 
-## エラーの解消
+## 解决这个错误
 
-とりあえずエラーを解消していきましょう。いきなり完璧なものは目指しません。  
-まず、transform の対象を「\*.vue」に限定してあげましょう。
-sample でやったように id で分岐を書いてもいいのですが、せっかく vite から createFilter という関数が提供されているのでそれでフィルターを作ります。(特に理由はないです。)
+我们并不需要立马就追求最完美的实现，现在首要的应该是怎么解决这个报错。
+
+首先，我们将插件的转换文件目标限制为 `*.vue`，你可以像我刚刚的示例插件那样通过 `id` 来判断文件类型。但是实际上 Vite 提供了一个 `createFilter` 工具函数，因此我这里将用它来创建一个 `filter` 过滤器，用来直接筛选 `.vue` 文件（这部分也没有什么特别的原因，本质上都是差不多的）。
 
 `~/packages/@extensions/vite-plugin-chibivue/index.ts`
 
@@ -389,14 +389,18 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-フィルターを作り、vue ファイルだった場合はファイル内容 `export default {}` に transform してみました。  
-おそらくエラーは消え、画面は何も表示されない感じになっているかと思います。
+现在我们创建了一个过滤器，用来筛选 `.vue` 文件，然后插件会将内容替换为 `export default {}`。
 
-## パーサの実装 on compiler-sfc
+现在屏幕上的错误应该就会消失了，整个屏幕会变成空白画面。
 
-さて、これではただのその場しのぎなのでちゃんとした実装をしていきます。  
-vite-plugin での役割はあくまで vite を利用する際に vite で transform できるようにするためのものなので、パースやコンパイラは vue の本体にあります。  
-それが`compiler-sfc`というディレクトリです。
+## 在 compiler-sfc 中实现编译器
+
+当然，上面那种方式只是一个临时方式，现在，我们开始正式实现 SFC 编译器。
+
+vite-plugin 的作用就是在使用 Vite 时，能够利用 Vite 的能力进行 `transform` 转换 vue 文件。
+所以解析器和编译器一样都在 vue 源码的 `packages` 里面。
+
+SFC 编译器是一个名为 `compiler-sfc` 的文件目录。
 
 ```mermaid
   flowchart LR
@@ -425,9 +429,9 @@ vite-plugin での役割はあくまで vite を利用する際に vite で tran
 
 https://github.com/vuejs/core/blob/main/.github/contributing.md#package-dependencies
 
-SFC のコンパイラは vite だろうが webpack だろうがコアな部分は同じです。それらの実装をになっているのが`compiler-sfc`です。
+无论是 Vite 还是 Webpack，SFC 编译器的核心逻辑部分都是一样的。他们都在 `compiler-sfc` 中实现。
 
-`compiler-sfc`を作っていきましょう。
+所以我们创建一个 `compiler-sfc` 目录。
 
 ```sh
 pwd # ~
@@ -435,7 +439,7 @@ mkdir packages/compiler-sfc
 touch packages/compiler-sfc/index.ts
 ```
 
-SFC のコンパイルでは `SFCDescriptor` というオブジェクトで SFC を表現します。
+在编译 SFC 的过程中，用 `SFCDescriptor` 类型的对象来表示 SFC 文件。
 
 ```sh
 touch packages/compiler-sfc/parse.ts
@@ -474,13 +478,16 @@ export declare interface SFCStyleBlock extends SFCBlock {
 }
 ```
 
-まあ、特に難しいことはないです。SFC の情報をオブジェクトで表現しただけです。
+这部分应该不难，只是将 SFC 的内容和信息表示成一个 JS 对象。
 
-`packages/compiler-sfc/parse.ts`では SFC ファイル(文字列)を `SFCDescriptor` にパースします。  
-「ええ。あんだけテンプレートのパースを頑張ったのにまたパーサつくるのかよ。。面倒臭い」と思った方もいるかも知れませんが、安心してください。  
-ここで実装するパーサは大したものではないです。というのも、これまで作ってきたものを組み合わせて template、script、style を分離するだけなので楽ちんです。
+`packages/compiler-sfc/parse.ts` 将 SFC 文件（字符串）解析为 `SFCDescriptor` 。
 
-まず、下準備として以前作った template のパーサを export してあげます。
+现在可能有人会想：“我在之前的模板解析器的实现上已经花了很大的功夫，现在又需要创建一个解析器，这不是很麻烦吗？”
+但是实际上我们不需要担心，因为这个解析器也没什么大不了的。
+
+因为这个解析器的实现并不是很困难，因为我们只需要根据之前编写的内容来重新组合一下，然后分离出 `template` 模板、`script` 脚本与 `style` 样式三个部分。
+
+首先，作为前提条件，我们需要导出之前编写的 `template` 对应的模板解析器。
 
 `~/packages/compiler-dom/index.ts`
 
@@ -491,13 +498,13 @@ export function compile(template: string) {
   return baseCompile(template)
 }
 
-// パーサをexportしてあげる
+// 导出解析函数
 export function parse(template: string) {
   return baseParse(template)
 }
 ```
 
-これらの interface を compiler-sfc 側で持っておいてあげます。
+然后在 `compiler-sfc` 文件下记录这些导出内容对应的 `interface` 定义。
 
 ```sh
 pwd # ~
@@ -515,7 +522,7 @@ export interface TemplateCompiler {
 }
 ```
 
-あとはパーサを実装してあげるだけです。
+接下来就是实现 SFC 解析器了。
 
 `packages/compiler-sfc/parse.ts`
 
@@ -526,7 +533,7 @@ import { TemplateCompiler } from './compileTemplate'
 
 /**
  * =========
- * 一部省略
+ * 省略之前的部分
  * =========
  */
 
@@ -597,8 +604,9 @@ function createBlock(node: ElementNode, source: string): SFCBlock {
 }
 ```
 
-ここまでパーサを実装してきたみなさんにとっては簡単だと思います。  
-実際に SFC を plugin 側でパースしてみましょう。
+到目前为止，我想对于自己实现过模板解析器的人来说应该都很容易。
+
+让我们在插件中尝试一下解析 SFC 吧。
 
 `~/packages/@extensions/vite-plugin-chibivue/index.ts`
 
@@ -626,18 +634,17 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-このコードは vite が動いているプロセス、つまり node で実行されるので console はターミナルに出力されているかと思います。
+这段代码在 vite 对应的进程下运行的，也就是在 node 环境中，所以此时的 console 应该输出到终端（terminal）中。
 
 ![parse_sfc1](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/parse_sfc1.png)
 
-/_ 途中省略 _/
+/_ 省略中间部分 _/
 
 ![parse_sfc2](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/parse_sfc2.png)
 
-無事にパースできているようです。やったね！
+看来你做到了！我们已经解析成功了。
 
-当前源代码位于:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler2)
+当前源代码位于:  [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler2)
 
 ## template 部分のコンパイル
 
