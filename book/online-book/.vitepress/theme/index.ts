@@ -1,6 +1,7 @@
-import { useData, inBrowser } from 'vitepress'
-import { h } from 'vue'
+import { useData, useRoute, inBrowser } from 'vitepress'
+import { h, onMounted, watch, nextTick } from 'vue'
 import DefaultTheme from 'vitepress/theme-without-fonts'
+import mediumZoom from 'medium-zoom'
 import {
   NolebaseEnhancedReadabilitiesMenu,
   NolebaseEnhancedReadabilitiesScreenMenu,
@@ -21,10 +22,24 @@ export default {
     })
   },
   setup() {
+    // setup language
     const { lang } = useData()
     if (inBrowser) {
       // @ts-ignore
       document.cookie = `nf_lang=${lang.value}; expires=Mon, 1 Jan 2024 00:00:00 UTC; path=/`
     }
+
+    // setup image zoom
+    const route = useRoute()
+    const initZoom = () => {
+      mediumZoom('.main img', { background: 'var(--vp-c-bg)' })
+    }
+    onMounted(() => {
+      initZoom()
+    })
+    watch(
+      () => route.path,
+      () => nextTick(() => initZoom()),
+    )
   },
 }
