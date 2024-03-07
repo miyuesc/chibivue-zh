@@ -147,7 +147,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         ],
       },
       {
-        text: '基础模板编译',
+        text: '基础模板编译器',
         collapsed: false,
         items: [
           {
@@ -209,7 +209,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         ],
       },
       {
-        text: '🚧 SFC 单文件组件编译器',
+        text: '🚧 基础 SFC 编译器',
         collapsed: true,
         items: [
           {
