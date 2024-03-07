@@ -646,12 +646,14 @@ export default function vitePluginChibivue(): Plugin {
 
 当前源代码位于:  [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler2)
 
-## template 部分のコンパイル
+## template 模板部分编译
 
-`descriptor.script.content` と `descriptor.template.content`にはそれぞれのソースコードが入っています。  
-これらを使って上手くコンパイルしたいです。template の方からやっていきましょう。  
-テンプレートのコンパイラはすでに持っています。  
-しかし、以下のコードを見てもらえればわかるのですが、
+在上面编写的 `parse` 函数返回值中，`descriptor.script.content` 和 `descriptor.template.content` 分别包含了 `script` 标签部分与 `template` 标签部分的源代码。
+我们现在希望的是能够成功编译它们。
+
+首先我们从 `template` 部分开始。
+
+我们之前已经有了一个模板编译器。但是，从下面的代码中你会发现，
 
 ```ts
 export const generate = ({
@@ -668,10 +670,13 @@ export const generate = ({
 }
 ```
 
-これは Function コンストラクタで new する前提の物になってしまっているので先頭に return がついてしまっています。
-SFC のコンパイラでは render 関数だけを生成したいので、コンパイラのオプションで分岐できるようにしましょう。
-コンパイラの第 2 引数としてオプションを受け取れるようにし、'isBrowser'というフラグを指定可能にします。
-この変数が true の時はランタイム上で new される前提のコードを出力し、false の場合は単にコードを生成します。
+之前的实现是假设它会与 `Function` 构造函数一起使用，所以开头是一个 `return` 语句。
+
+但是在 SFC 编译器中，我只想生成一个渲染函数 `render`，所以我们可以在 `compile` 编译器函数中添加一个参数来进行判断。
+
+现在我们修改 `compile` 函数，允许接收第二个参数，并指定为 `isBrowser`，是一个布尔值。
+
+当 `isBrowser` 为 `true` 时，生成提供给运行时使用的代码，否则就只是简单的生成代码。
 
 ```sh
 pwd # ~
@@ -727,7 +732,7 @@ export const generate = (
 }
 ```
 
-ついでに import 文を足しておきました。output という配列にソースコードを詰めていく感じにも変更してます。
+还需要对刚才的插件进行修改，这里我导入了 `Plugin` 类型声明，并且声明了一个 `outputs` 数组变量，以便将所有编译结果进行输出
 
 ```ts
 import type { Plugin } from 'vite'
@@ -762,26 +767,31 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-これで render 関数をコンパイルできるようになっていると思います。ブラウザの source で確認してみましょう。
+现在我们应该能够编译 `template` 为一个 `render` 函数了，我们可以在浏览器中检查一下源代码。
 
-と、言いたいところなのですが、実は少し問題があります。
+但是，实际上现在还有一点儿小问题。
 
-データをテンプレートにバインドする際に、with 文を使用していると思うのですが、Vite は ESM を扱う都合上、非厳格モード (sloppy モード) でのみ動作するコードを処理できず、  
-with 文を扱うことができません。  
-これまでは vite 上ではなく、単に with 文を含むコード(文字列)を Function コンストラクタに渡してブラウザ上で関数化していたので特に問題にはなっていませんでしたが、
-今回はエラーになってしいます。以下のようなエラーが出るはずです。
+目前我们实现模板的数据绑定时使用的是 `with` 语句，但是由于 ESM 的特性，Vite 是无法处理仅仅能够在非严格模式（sloppy 模式）下才能执行的代码。
+也就是说它无法处理 `with` 语句。
+
+到现在为止，我们实现的编译只是简单的生成一个包含 `with` 语句的代码（字符串）然后将其传递给 `Function` 构造函数，然后生成可以在浏览器上执行的函数，这看起来没有什么特别的问题。
+
+但这种实现方式是有问题的，现在它就会抛出这样的错误。
 
 > Strict mode code may not include a with statement
+> 
+> 即：严格模式代码不能包含 with 语句
 
-これについては Vite の公式ドキュメントの方にもトラブルシューティングとして記載されています。
+关于这个问题，Vite 的官方文档也将其记录到了排错指南当中。
 
-[Syntax Error / Type Error が発生する (Vite)](https://ja.vitejs.dev/guide/troubleshooting.html#syntax-error-type-error-%E3%81%8B%E3%82%99%E7%99%BA%E7%94%9F%E3%81%99%E3%82%8B)
+[出现 Syntax Error 或 Type Error(Vite)](https://cn.vitejs.dev/guide/troubleshooting#syntax-error-type-error-happens)
 
-今回は、一時的な対応策として、ブラウザモードでない場合には with 文を含まないコードを生成するようにしてみます。
+作为临时解决方案，让我们尝试在非浏览器模式下生成不包含 `with` 语句的代码。
 
-具体的には、バインド対象のデータに関しては with 文を使用せずに prefix として `_cxt.`　を付与する形で制御してみます。  
-一時的な対応なのであまり厳格ではないのですが、概ね動作するようになると思います。  
-(ちゃんとした対応は後のチャプターで行います。)
+具体来说，对于要绑定的数据，我们尝试通过添加实例对象前缀 `_ctx.` 来控制，而不是使用 `with` 语句。
+
+当然由于这只是一个临时方式，所以代码实现上不会特别严格，但是我认为它应该能正常使用。
+（正确的解决方案会在后面的章节中讲解）
 
 ```ts
 export const generate = (
@@ -792,7 +802,7 @@ export const generate = (
   },
   option: Required<CompilerOptions>,
 ): string => {
-  // isBrowser が false の場合は with 文を含まないコードを生成する
+  // 如果 isBrowser 为 false，则生成不包含 with 语句的代码
   return `${option.isBrowser ? 'return ' : ''}function render(_ctx) {
     ${option.isBrowser ? 'with (_ctx) {' : ''}
       const { h } = ChibiVue;
@@ -816,7 +826,7 @@ const genProp = (
       switch (prop.name) {
         case 'on':
           return `${toHandlerKey(prop.arg)}: ${
-            option.isBrowser ? '' : '_ctx.' // -------------------- ここ
+            option.isBrowser ? '' : '_ctx.' // -------------------- 这里
           }${prop.exp}`
         default:
           // TODO: other directives
@@ -836,20 +846,19 @@ const genInterpolation = (
   node: InterpolationNode,
   option: Required<CompilerOptions>,
 ): string => {
-  return `${option.isBrowser ? '' : '_ctx.'}${node.content}` // ------------ ここ
+  return `${option.isBrowser ? '' : '_ctx.'}${node.content}` // ------------ 这里
 }
 ```
 
 ![compile_sfc_render](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/compile_sfc_render.png)
 
-上手くコンパイルできているようです。あとは同じ要領で、どうにかして script を引っこ抜いて default exports に突っ込めば OK です。
+看起来编译效果还不错。对于 `script` 部分我们要做的处理也是类似的，将内容部分通过某种方式转换后按照这样的方式放到 `default exports` 默认导出中就好了。
 
-当前源代码位于:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler3)
+当前源代码位于: [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler3)
 
-## script 部分のコンパイル
+## script 脚本部分编译
 
-さて、元々の SFC の script 部分は以下のようになっています。
+现在，原始的 `script` 部分获取到的内容是这样的格式：
 
 ```ts
 export default {
@@ -857,7 +866,7 @@ export default {
 }
 ```
 
-これらを先ほど生成した render 関数といい感じに mix して export したいのですが、どうにか
+我想将它和刚刚生成的 `render` 函数结合起来然后一起导出他们。但是我只需要这部分。
 
 ```ts
 {
@@ -865,10 +874,9 @@ export default {
 }
 ```
 
-の部分だけ取り出せないでしょうか？
+怎么把这部分取出来呢？
 
-もしこの部分を取り出すことができたら、
-以下のようにしてあげれば良いことになります。
+如果我们能把上面那部分取出来，就可以直接这么操作了。
 
 ```ts
 const _sfc_main = {
@@ -878,9 +886,9 @@ const _sfc_main = {
 export default { ..._sfc_main, render }
 ```
 
-## 外部ライブラリを使う
+## 使用外部库
 
-上記のようなことをしたいのですが結論から言うと以下の 2 つのライブラリを使って楽に実装します。
+要实现上面的效果，我们只需要用以下两个库就可以轻松实现了。
 
 - @babel/parser
 - magic-string
@@ -891,16 +899,20 @@ https://babeljs.io
 
 [What is Babel](https://babeljs.io/docs)
 
-こちらは普段 JavaScript を使っている方はよく聞くかも知れません。  
-Babel は JavaScript の後方互換バージョンに変換するために使用されるツールチェインです。  
-簡単に言うと、JS から JS へのコンパイラ(トランスパイラ)です。  
-今回は Babel をコンパイラとしてだけではなく、パーサとして利用します。  
-Babel はコンパイラとしての役割を持つので、もちろん内部では AST に変換するためのパーサを実装しています。  
-そのパーサをライブラリとして利用ます。  
-さらっと AST という言葉を出しましたが、JavaScript ももちろん AST としての表現を持っています。  
-こちらに AST の仕様があります。(https://github.com/estree/estree)  
-上記の GitHub の md ファイルを見てもらっても良いのですが、簡単に JavaScript の AST について説明しておくと、  
-まずプログラム全体は Program という AST ノードで表現されていて、Statement を配列で持ちます。(わかりやすいように TS の interface で表現しています。)
+对于经常使用 JavaScript 的人来说，这应该是一个非常常见的问题。
+Babel 是一个用来将 JavaScript 代码转换为向后兼容版本的工具链。
+简单来说，它是一个 JS 到 JS 的编译器（transpiler）。
+
+这次我们不仅会将 Babel 用到编译器，还会将它用到解析器上。
+但由于 Babel 本身也作为一个编译器，内部实现了一个解析器用来转换为 AST。
+我们也可以直接利用它来解析。
+
+之前我们也说过 AST，表示抽象语法树。它在 JavaScript 中也有自己的表述方式。
+
+您可以在这里(https://github.com/estree/estree)找到 AST 的规范。
+你可以自行查看 Github 上面的 md 文档来了解这个规范，但是我这里还是要简单解释一下。
+
+首先，整个程序由一个名为 `Program` 的 AST 节点表示根节点，其中包含 `Statements` 数组（为了便于理解，表述为 `TS` 接口）。
 
 ```ts
 interface Program {
@@ -908,7 +920,8 @@ interface Program {
 }
 ```
 
-Statement というのは日本で言うと「文」です。JavaScript は文の集まりです。具体的には「変数宣言文」や「if 文」「for 文」「ブロック」などが挙げられます。
+`Statement` 在 JavaScript 中表示 “语句”，`body` 是语句的集合。
+示例中包括 “变量声明语句”、“`if` 语句”、“`for` 语句” 和 “块语句”。
 
 ```ts
 interface Statement {}
@@ -928,16 +941,17 @@ interface ForStatement extends Statement {
 interface BlockStatement extends Statement {
   body: Statement[]
 }
-// 他にもたくさんある
+// 还有很多其他的语句
 ```
 
-そして、文というのは多くの場合「Expression(式)」を持ちます。式というのは変数に代入できる物だと考えてもらえれば良いです。具体的には「オブジェクト」や「2 項演算」「関数呼び出し」などが挙げられます。
+而且在很多情况下，语句通常都是 `Expression` 表达式。
+表达式一般指用来分配变量的内容，具体的包括 “对象”、“二元运算”、“函数调用” 等。
 
 ```ts
 interface Expression {}
 
 interface BinaryExpression extends Expression {
-  operator: '+' | '-' | '*' | '/' // 他にもたくさんあるが省略
+  operator: '+' | '-' | '*' | '/' // 还有很多其他的操作符，这里省略掉了
   left: Expression
   right: Expression
 }
@@ -951,91 +965,95 @@ interface CallExpression extends Expression {
   arguments: Expression[]
 }
 
-// 他にもたくさんある
+// 还有很多其他的
 ```
 
-if 文について考えると、このような構造をとることがわかります。
+我们思考一下 `if` 语句，可以知道它应该具有以下结构：
 
 ```ts
 interface IfStatement extends Statement {
-  test: Expression // 条件値
-  consequent: Statement // 条件値がtrueの場合に実行される文
-  alternate: Statement | null // 条件値がfalseの場合に実行される文
+  test: Expression // 条件表达式
+  consequent: Statement // 条件表达式结构为 true 时执行的语句
+  alternate: Statement | null // 条件表达式结构为 false 时执行的语句
 }
 ```
 
-このように、JavaScript の構文は上記のような AST にパースされるのです。既に chibivue のテンプレートのコンパイラを実装したみなさんにとっては分かりやすい話だと思います。(同じこと)
+这样，JavaScript 语法就被解析为像上面那样的 AST。
+我认为对于那些已经实现了 chibivue 模板编译器的人来说这不分会很容易理解（原理是相同的）。
 
-なぜ Babel を使うのかというと、理由は２つあって、1 つは単純にめんどくさいからです。パーサを実装したことあるみなさんなら estree を見ながら JS のパーサを実装することも技術的には可能かも知れません。
-けど、とてもめんどくさいし、今回の「Vue の理解を深める」という点においてはあまり重要ではありません。もう一つの理由は本家 Vue もこの部分は Babel を使っているという点です。
+我之所以使用 Babel 来实现，原因有两个：
+1. 它的使用很简单，假设我们要自己实现一个完整的解析器，如果您有开发解析器的经验，加上阅读 estree 了解 AST 规范，这样在技术上来说还是可行的。
+2. 另一个原因就是 Vue 在这个地方也使用了 Babel。
 
 ### magic-string
 
 https://github.com/rich-harris/magic-string
 
-もう一つ使いたいライブラリがあります。こちらも本家の Vue が使っているライブラリです。  
-こちらは文字列操作を便利にするライブラリです。
+我使用的另外一个库，也是 Vue 所使用的。
+
+它的目的是让字符串的操作更加方便。
 
 ```ts
 const input = 'Hello'
 const s = new MagicString(input)
 ```
 
-のようにインスタンスを生成し、そのインスタンスに生えている便利なメソッドを利用して文字列操作をしていきます。
-いくつか例をあげます。
+创建一个这样的 `MagicString` 实例，我们可以使用该实例上的方法来便捷地操作字符串。
+这里有些使用示例。
 
 ```ts
-s.append('!!!') // 末尾に追加する
-s.prepend('message: ') // 先頭に追加する
-s.overwrite(9, 13, 'こんにちは') // 範囲を指定して上書き
+s.append('!!!') // 末尾追加字符
+s.prepend('message: ') // 头部插入字符
+s.overwrite(9, 13, 'Hello') // 指定范围内替换
 ```
 
-特に無理して使う必要はないのですが、本家の Vue に合わせて使うことにします。
+虽然看起来没有必要强行使用，但是这也是为了和 Vue 源码保持一致。
 
-Babel にしろ magic-string にしろ、実際の使い方等は実装の段階で合わせて説明するのでなんとなくの理解で問題ないです。
+无论是 Babel 还是 magic-string，此时你都不需要详细了解实际用法。
+稍后我会解释它们的用途并调整代码实现，现在对它们有一个粗略的了解就可以了。
 
-## script の default export を書き換える
+## 重写 script 脚本的默认导出
 
-今一度現在の目標を確認しておくと、
+回顾一下之前的目标：
 
 ```ts
 export default {
   setup() {},
-  // その他のオプション
+  // 其他内容
 }
 ```
 
-というコードを、
+将上面这样的源码
 
 ```ts
 const _sfc_main = {
   setup() {},
-  // その他のオプション
+  // 其他内容
 }
 
 export default { ..._sfc_main, render }
 ```
 
-というふうに書き換えたいわけです。
+重写为这个样子。
 
-つまりは、元々のコードの export 文から良い感じに export 対象をを抜き出し、\_sfc_main という変数に代入できるようになればゴールということです。
+换句话说，我们的目标就是能够从原始代码中的 `export default` 导出语句中提取导出的内容并将其分配给名为 `_sfc_main` 的变量。
 
-まずは必要なライブラリをインストールします。
+首先，先安装必要的库。
 
 ```sh
 pwd # ~
 ni @babel/parser magic-string
 ```
 
-rewriteDefault.ts というファイルを作成します。
+创建一个名为 `rewriteDefault.ts` 的文件。
 
 ```sh
 pwd # ~
 touch packages/compiler-sfc/rewriteDefault.ts
 ```
 
-input に対象のソースコード、as に最終的にバインドしたい変数名を受け取れるようにしておきます。  
-戻り値として変換されたソースコードを返します。
+创建一个 `rewriteDefault` 函数，指定参数 `input` 为接收的原始代码，`as` 为要解释编译内容的变量名。
+最后返回转换后的代码字符串。
 
 `~/packages/compiler-sfc/rewriteDefault.ts`
 
@@ -1046,8 +1064,7 @@ export function rewriteDefault(input: string, as: string): string {
 }
 ```
 
-まず手始めとして、そもそも export の宣言が存在しない場合のハンドリングをしておきます。
-export が存在しないわけなので、からのオブジェクトをバインドして終了です。
+首先，我们要处理不存在默认导出的情况。由于没有 `export` 导出，所以要给 `as` 指定的变量绑定一个空对象。
 
 ```ts
 const defaultExportRE = /((?:^|\n|;)\s*)export(\s*)default/
@@ -1067,7 +1084,7 @@ export function hasDefaultExport(input: string): boolean {
 }
 ```
 
-ここで Babel パーサと magic-string の登場です。
+现在就轮到 Babel 和 magic-string 登场了。
 
 ```ts
 import { parse } from '@babel/parser'
@@ -1086,35 +1103,36 @@ export function hasDefaultExport(input: string): boolean {
 }
 ```
 
-ここからは Babel パーサによって得られた JavaScript の AST(ast) を元に s を文字列操作していきます。
-少し長いですが、ソースコード内のコメントで補足の説明も入れていきます。
-基本的には AST を手繰っていって、type によって分岐処理を書いて magic-string のメソッドで s を操作していくだけです。
+从这里开始，我们将根据 Babel 的解析器解析原始代码得到的 JavaScript AST（也就是 `ast` 变量）通过 `s` 对原始代码字符串进行操作。
+
+这部分代码有点儿长，但是我会在代码中给出足够的文字说明。
+基本上我们要做的就是遍历 `ast`，根据不同的 `Statement` 语句类型编写不同的分支处理，然后使用 `s` 提供的方法操作代码字符串。
 
 ```ts
 export function hasDefaultExport(input: string): boolean {
   // .
   // .
   ast.forEach(node => {
-    // default exportの場合
+    // 具有 default export 的情况
     if (node.type === 'ExportDefaultDeclaration') {
       if (node.declaration.type === 'ClassDeclaration') {
-        // `export default class Hoge {}` だった場合は、`class Hoge {}` に置き換える
+        // 如果是 `export default class Hoge {}`，则替换为 `class Hoge {}`
         s.overwrite(node.start!, node.declaration.id.start!, `class `)
-        // その上で、`const ${as} = Hoge;` というようなコードを末尾に追加してあげればOK.
+        // 在此基础上，在末尾追加 `const ${as} = Hoge;` 代码就可以了。
         s.append(`\nconst ${as} = ${node.declaration.id.name}`)
       } else {
-        // それ以外の default exportは宣言部分を変数宣言に置き換えてあげればOk.
+        // 除此之外，将 default export 部分替换为变量声明即可。
         // eg 1) `export default { setup() {}, }`  ->  `const ${as} = { setup() {}, }`
         // eg 2) `export default Hoge`  ->  `const ${as} = Hoge`
         s.overwrite(node.start!, node.declaration.start!, `const ${as} = `)
       }
     }
 
-    // named export の場合でも宣言中に default exportが発生する場合がある.
-    // 主に3パターン
-    //   1. `export { default } from "source";`のような宣言の場合
-    //   2. `export { hoge as default }` from 'source' のような宣言の場合
-    //   3. `export { hoge as default }` のような宣言の場合
+    // 在具名导出的情况下，也可能存在默认导出
+    // 主要有以下三种情况
+    //   1. `export { default } from "source";` 的情况
+    //   2. `export { hoge as default }` from 'source' 的情况
+    //   3. `export { hoge as default }` 的情况
     if (node.type === 'ExportNamedDeclaration') {
       for (const specifier of node.specifiers) {
         if (
@@ -1122,12 +1140,13 @@ export function hasDefaultExport(input: string): boolean {
           specifier.exported.type === 'Identifier' &&
           specifier.exported.name === 'default'
         ) {
-          // `from`というキーワードがある場合
+          // 如果有 `form` 关键字
           if (node.source) {
             if (specifier.local.name === 'default') {
-              // 1. `export { default } from "source";`のような宣言の場合
-              // この場合はimport文に抜き出して名前をつけてあげ、最終的な変数にバインドする
-              // eg) `export { default } from "source";`  ->  `import { default as __VUE_DEFAULT__ } from 'source'; const ${as} = __VUE_DEFAULT__`
+              // 1. `export { default } from "source";` 的情况
+              // 在这种情况下，需要将其提取到导入语句中并为其重新命名，然后将其绑定到最终的 `as` 变量。
+              // eg) `export { default } from "source";`
+              // ->  `import { default as __VUE_DEFAULT__ } from 'source'; const ${as} = __VUE_DEFAULT__`
               const end = specifierEnd(input, specifier.local.end!, node.end!)
               s.prepend(
                 `import { default as __VUE_DEFAULT__ } from '${node.source.value}'\n`,
@@ -1136,9 +1155,10 @@ export function hasDefaultExport(input: string): boolean {
               s.append(`\nconst ${as} = __VUE_DEFAULT__`)
               continue
             } else {
-              // 2. `export { hoge as default }` from 'source' のような宣言の場合
-              // この場合は一度全てのspecifierをそのままimport文に書き換え、as defaultになっている変数を最終的な変数にバインドする
-              // eg) `export { hoge as default } from "source";`  ->  `import { hoge } from 'source'; const ${as} = hoge
+              // 2. `export { hoge as default }` from 'source' 的情况
+              // 在这种情况下，需要按照导入语句中的方式重写所有变量标识符，并将作为 default 默认值的变量绑定到最终的 `as` 变量。
+              // eg) `export { hoge as default } from "source";`
+              // ->  `import { hoge } from 'source'; const ${as} = hoge
               const end = specifierEnd(
                 input,
                 specifier.exported.end!,
@@ -1151,8 +1171,8 @@ export function hasDefaultExport(input: string): boolean {
                 )} } from '${node.source.value}'\n`,
               )
 
-              // 3. `export { hoge as default }`のような宣言の場合
-              // この場合は単純に最終的な変数にバインドしてあげる
+              // 3. `export { hoge as default }` 的情况
+              // 在这种情况下，我们只需要简单地把默认变量绑定到最终的 `as` 变量
               s.overwrite(specifier.start!, end, ``)
               s.append(`\nconst ${as} = ${specifier.local.name}`)
               continue
@@ -1169,8 +1189,8 @@ export function hasDefaultExport(input: string): boolean {
   // .
 }
 
-// 宣言文の終端を算出する
-function specifierEnd(input: string, end: number, nodeEnd: number | null) {
+// 计算声明语句的结尾位置
+function specifierEnd(input: string, end: number, nodeEnd: number | null): number {
   // export { default   , foo } ...
   let hasCommas = false
   let oldEnd = end
@@ -1189,7 +1209,7 @@ function specifierEnd(input: string, end: number, nodeEnd: number | null) {
 }
 ```
 
-これで default export の書き換えができるようになりました。実際に plugin で使ってみましょう。
+现在我们已经可以重写默认导出语句。让我们尝试在插件中使用它。
 
 ```ts
 import type { Plugin } from 'vite'
@@ -1211,14 +1231,14 @@ export default function vitePluginChibivue(): Plugin {
 
       const { descriptor } = parse(code, { filename: id })
 
-      // --------------------------- ここから
+      // --------------------------- 从这里开始
       const SFC_MAIN = '_sfc_main'
       const scriptCode = rewriteDefault(
         descriptor.script?.content ?? '',
         SFC_MAIN,
       )
       outputs.push(scriptCode)
-      // --------------------------- ここまで
+      // --------------------------- 到这里结束
 
       const templateCode = compile(descriptor.template?.content ?? '', {
         isBrowser: false,
@@ -1226,7 +1246,7 @@ export default function vitePluginChibivue(): Plugin {
       outputs.push(templateCode)
 
       outputs.push('\n')
-      outputs.push(`export default { ...${SFC_MAIN}, render }`) // ここ
+      outputs.push(`export default { ...${SFC_MAIN}, render }`) // 这里打印结果
 
       return { code: outputs.join('\n') }
     },
@@ -1234,7 +1254,7 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-その前にちょっとだけ修正します。
+在此之前，我们要先做一个小修改。
 
 `~/packages/runtime-core/component.ts`
 
@@ -1243,7 +1263,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
   // .
   // .
   // .
-  // componentのrenderオプションをインスタンスに
+  // 将 component 组件定义中的 render 函数绑定到组件实例上
   const { render } = component
   if (render) {
     instance.render = render as InternalRenderFunction
@@ -1251,32 +1271,34 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
 }
 ```
 
-これでレンダリングができるようになっているはずです!!！
+现在应该能够渲染了！
 
 ![render_sfc](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/render_sfc.png)
 
-スタイルの対応をしていないのでスタイルが当たっていないですがこれでレンダリングはできるようになりました。
+由于我们还没有处理 `style` 样式部分，所以编写的样式没有生效，但是元素渲染已经没有问题了。
 
-## スタイルブロック
+## style 样式块
 
-### 仮想モジュール
+### Virtual Modules 虚拟模块
 
-スタイルも対応してしまいます。vite では css という拡張子のファイルを import することでスタイルを読み込めるようになっています。
+我们也支持样式文件。在 Vite 中，您可以使用 `.css` 扩展名导入 CSS 文件。
 
 ```js
 import 'app.css'
 ```
 
-vite の仮想モジュールという機能を使って SFC から仮想的な CSS ファイルを作り、アウトプットの JS ファイルの import 文に追加する方針で実装してみます。  
-仮想モジュール、と聞くとなんだか難しいように聞こえますが、「実際には存在しないファイルをあたかも存在するようにインメモリに保持しておける」と捉えてもらえれば問題ないです。  
-vite では`load`と`resolve`というオプションを使って仮想モジュールを実現することができます。
+我们将使用 Vite 的虚拟模块来实现这个功能。它可以从 SFC 中创建一个虚拟的 CSS 文件，并通过将它添加到输入语句中的导入语句中来完成对它的引用。
+
+刚听到 “虚拟模块” 这个词，可能会觉得实现起来很困难，但如果我们能理解成 “实际上不存在的文件，但是保存在内存中可以作为实际存在的文件一样使用” 应该就没问题了。
+
+在 Vite 中，我们可以使用 `load` 和 `resolve` 选项来实现虚拟模块。
 
 ```ts
 export default function myPlugin() {
   const virtualModuleId = 'virtual:my-module'
 
   return {
-    name: 'my-plugin', // 必須、警告やエラーで表示されます
+    name: 'my-plugin', // 必须设置 name，不然会出现错误和警告
     resolveId(id) {
       if (id === virtualModuleId) {
         return virtualModuleId
@@ -1291,25 +1313,27 @@ export default function myPlugin() {
 }
 ```
 
-resolve に解決したいモジュールの id を任意に設定し、load でその id をハンドリングすることによってモジュールを読み込むことができます。  
-上記の例だと、`virtual:my-module`というファイルは実際には存在しませんが、
+通过在 `resolve` 中任意设置所需的模块的 ID 并在 `load` 中处理该 ID，您就可以加载该模块。
+
+例如上面的例子中，`virtual:my-module` 模块就是不存在的。
 
 ```ts
 import { msg } from 'virtual:my-module'
 ```
 
-のように書くと`export const msg = "from virtual module"`が load されます。
+但是我们按照上面这种方式来编写代码，则会被编译成 `export const msg = "from virtual module"` 然后加载这个虚拟模块。
 
-[参考](https://ja.vitejs.dev/guide/api-plugin.html#%E4%BB%AE%E6%83%B3%E3%83%A2%E3%82%B7%E3%82%99%E3%83%A5%E3%83%BC%E3%83%AB%E3%81%AE%E8%A6%8F%E7%B4%84)
+[参考文档](https://cn.vitejs.dev/guide/api-plugin#virtual-modules-convention)
 
-子の仕組みを使って SFC の style ブロックを仮想の css ファイルとして読み込むようにしてみます。  
-最初に言った通り、vite では css という拡張子のファイルを import すれば良いので、${SFC のファイル名}.css という仮想モジュールを作ることを考えてみます。
+我们可以借助这个机制来将 SFC 中的 `style` 部分转换为 css 虚拟模块然后加载。
 
-### SFC のスタイルブロックの内容で仮想モジュールを実装する
+正如之前所说，vite 只需导入扩展名为 css 的文件就可以使用，所以我们需要考虑为每个 SFC 创建名为 `${SFC 的文件名}.css` 的虚拟模块。
 
-今回は、たとえば「App.vue」というファイルがあったとき、その style 部分を「App.vue.css」という名前の仮想モジュールを実装することを考えてみます。  
-やることは単純で、`**.vue.css`という名前のファイルが読み込まれたら`.css`を除いたファイルパス(つまり通常の Vue ファイル)から SFC を`fs.readFileSync`で取得し、  
-パースして style タグの内容を取得し、それを code として返します。
+### 使用 SFC 中样式块的内容实现虚拟模块
+
+例如这次，如果我们有一个名为 `App.vue` 的文件，让我们思考一下为它的 `style` 样式部分创建一个虚拟模块。
+
+我们要做的很简单：当我们读取一个名为 `**.vue.css` 的文件时，我们将从除 `.css` 之外的文件路径（即普通 `.vue` 文件）中获取 SFC，并使用 `fs.readFileSync` 读取文件中 `style` 块的内容，最后将其作为 `code` 返回。
 
 ```ts
 export default function vitePluginChibivue(): Plugin {
@@ -1321,19 +1345,19 @@ export default function vitePluginChibivue(): Plugin {
     //  ,
     //  ,
     resolveId(id) {
-      // このidは実際には存在しないパスだが、loadで仮想的にハンドリングするのでidを返してあげる (読み込み可能だということにする)
+      // 这个 id 实际上是一个不存在的路径，但是需要在 load 中作为虚拟模块处理，所以返回 id 字符串 (可以读取)
       if (id.match(/\.vue\.css$/)) return id
 
-      // ここでreturnされないidに関しては、実際にそのファイルが存在していたらそのファイルが解決されるし、存在していなければ存在しないというエラーになる
+      // 对于在此处没有被返回的 id，如果文件实际存在，则将解析该文件；如果不存在，则将抛出文件不存在的错误
     },
     load(id) {
-      // .vue.cssがloadされた (importが宣言され、読み込まれた) ときのハンドリング
+      // 当 .vue.css 文件被加载时 (有 import 声明的导入语句) 进行处理
       if (id.match(/\.vue\.css$/)) {
         const filename = id.replace(/\.css$/, '')
-        const content = fs.readFileSync(filename, 'utf-8') // 普通にSFCファイルを取得
-        const { descriptor } = parse(content, { filename }) //  SFCをパース
+        const content = fs.readFileSync(filename, 'utf-8') // 正常获取 SFC 文件
+        const { descriptor } = parse(content, { filename }) //  解析 SFC
 
-        // contentをjoinsして結果とする。
+        // 将所有 styles 块组合返回
         const styles = descriptor.styles.map(it => it.content).join('\n')
         return { code: styles }
       }
@@ -1344,7 +1368,7 @@ export default function vitePluginChibivue(): Plugin {
 
       const outputs = []
       outputs.push("import * as ChibiVue from 'chibivue'")
-      outputs.push(`import '${id}.css'`) // ${id}.cssのimport文を宣言しておく
+      outputs.push(`import '${id}.css'`) // 插入 ${id}.css 对应的导入声明
       //  ,
       //  ,
       //  ,
@@ -1353,17 +1377,17 @@ export default function vitePluginChibivue(): Plugin {
 }
 ```
 
-さて、ブラウザで確認してみましょう。
+现在，让我们在浏览器中检查一下。
 
 ![load_virtual_css_module](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/load_virtual_css_module.png)
 
-ちゃんとスタイルが当たるようになっているようです。
+看起来样式已经正常应用了。
 
-ブラウザの方でも、css が import され、.vue.css というファイルが仮想的に生成されているのが分かるかと思います。  
+在浏览器中，您可以看到 CSS 已经导入和加载了，并且生成了一个虚拟的 `.vue.css` 文件。
+
 ![load_virtual_css_module2](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/load_virtual_css_module2.png)  
 ![load_virtual_css_module3](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/load_virtual_css_module3.png)
 
-これで SFC が使えるようになりました！
+现在我们已经可以正常使用 SFC 了。
 
-当前源代码位于:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler4)
+当前源代码位于: [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/10_minimum_example/070_sfc_compiler4)
