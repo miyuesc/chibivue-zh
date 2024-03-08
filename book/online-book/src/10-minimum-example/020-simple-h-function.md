@@ -272,7 +272,7 @@ pwd # ~
 touch packages/runtime-dom/patchProp.ts
 ```
 
-`runtime-dom/patchProp.ts` の内容
+`runtime-dom/patchProp.ts` 的内容
 
 ```ts
 type DOMRendererOptions = RendererOptions<Node, Element>
