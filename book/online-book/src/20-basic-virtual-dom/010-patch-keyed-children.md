@@ -1,16 +1,18 @@
-# key属性とパッチレンダリング(Basic Virtual DOM部門スタート)
+# key 属性与补丁渲染(基础虚拟 DOM 章节开始了)
 
-## 重大なバグ
+## 重大问题
 
-実は今の chibivue のパッチレンダリングには重大なバグが存在しています。  
-パッチレンダリングの実装をした際に、
+实际上，我们现在实现的 Chibivue 还存在一个非常严重的问题。
 
-> patchChildren に関して、本来は key 属性などを付与して動的な長さの子要素に対応したりしないといけない
+在之前实现 `patch` 补丁渲染程序的时候，
 
-と言ったのを覚えているでしょうか。
+> 关于 `patchChildren`，需要通过添加 `key` 属性来处理动态大小的子元素。
 
-実際にどのような問題が起こるのか確かめてみましょう。
-現時点での実装だと、patchChildren は以下のような実装になっています。
+你还记得这句话吗？
+
+让我们看看实际发生了什么问题。
+
+目前，我们的 `patchChildren` 方法的实现是这样的：
 
 ```ts
 const patchChildren = (n1: VNode, n2: VNode, container: RendererElement) => {
@@ -24,19 +26,20 @@ const patchChildren = (n1: VNode, n2: VNode, container: RendererElement) => {
 }
 ```
 
-これは、c2(つまり次の vnode)の長さを基準にループを回しています。
-つまり、c1 と c2 が同じ要素の場合にしか基本的には成り立っていないのです。
+这基于 `c2`（即下一个 `vnode`）的数组长度进行循环的。
+换句话说，它只在 `c1` 和 `c2` 基本相同时才起作用。
 
 ![c1c2map](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/c1c2map.png)
 
-例えば、要素が減っていた場合を考えてみましょう。
-patch のループは c2 を基本としているわけなので、4 つめの要素の patch が行われません。
+假如，我们现在是进行元素的删除。
+
+那么由于 `patch` 是根据 `c2` 的进行遍历的，因此 `c1` 中的第四个元素将没有办法执行 `patch`。
 
 ![c1c2map_deleted](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/c1c2map_deleted.png)
 
-このようになった時、どうなるかというと、単純に 1~3 つ目の要素は更新され、4 つ目は消えず、 c1 のものが残ってしまいます。
+发生这种情况时，只会简单的对 1 ~ 3 这三个元素进行更新，`c1` 中的第四个元素不会消失，而是会被保留下来。
 
-実際に動作を見てみましょう。
+我们来看看他的实际效果：
 
 ```ts
 import { createApp, h, reactive } from 'chibivue'
@@ -63,36 +66,39 @@ const app = createApp({
 app.mount('#app')
 ```
 
-update ボタンを押すと以下のようになるかと思います。
+当我们点击 `update` 按钮时，页面会变成这样。
 
 ![patch_bug](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/patch_bug.png)
 
-list は`["e", "f", "g"]`に更新したはずなのに、`d`が残ってしまっています。
+虽然列表的前面三个元素已经正确更新为 `["e", "f", "g"]`，但是 `d` 依然还存在。
 
-そして、実は問題はこれだけではありません。要素が差し込まれた時のことを考えてみましょう。
-現状では、c2 を基準にループを回しているだけなので、以下のようになってしまいます。
+实际上，不仅仅是删除这种情况会出现问题。
+当我们向其中插入新的元素时，由于是基于 `c2` 进行遍历更新的，所以会变成这样：
 
 ![c1c2map_inserted](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/c1c2map_inserted.png)
 
-しかし、実際に差し込まれたのは`new element`で、比較は c1,c2 のそれぞれの li 1, li 2, li 3, li 4 同士で行いたいはずです。
+然而，我们实际插入的元素是 `new element`，我们希望的是比较 `c1, c2` 之间 `li 1, li 2, li 3, li 4` 四个元素前后分别发生了什么变化。
 
 ![c1c2map_inserted_correct](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/c1c2map_inserted_correct.png)
 
-これらの二つの問題に共通して言えることは、「c1 と c2 で同一視したい node が判断できない」ということです。  
-これを解決するには、要素に key を付与し、その key を元にパッチを行う必要があります。  
-ここで、Vue のドキュメントで key 属性についての説明を見てみましょう。
+这两个问题的共同点在于，我们无法确定 `c1` 与 `c2` 中，哪些元素应该被视为同一节点。
 
-> 特別な属性 key は、主に Vue の Virtual DOM アルゴリズムが新しいノードリストを古いリストに対して差分する際に、vnode を識別するためのヒントとして使用されます。
+为了解决这个问题，我们有必要在每个元素上添加一个 `key` 属性，然后在比较这个 `key` 的基础上进行补丁更新。
 
-https://ja.vuejs.org/api/built-in-special-attributes.html#key
+现在，我们来回顾一下 Vue 官方文档中对 `key` 的解释：
 
-いかにも、と言ったところです。よく、「v-for の key に index を指定するな」という話があると思いますが、まさに今現時点では暗黙的に key が index になっているがために上記のような問題が発生していました。(c2 の長さを基準に for を回し、その index を元に c1 と patch を行っている)
+> `key` 这个特殊的 `attribute` 主要作为 Vue 的虚拟 DOM 算法提示，在比较新旧节点列表时用于识别 `vnode`。
 
-## key 属性を元に patch しよう
+https://cn.vuejs.org/api/built-in-special-attributes.html#key
 
-そしてこれらを実装しているのが、``という関数です。(本家 Vue で探してみましょう。)
+事实上，我们可能也听说过 “不要将 `v-for` 循环中的 `index` 作为 `key`”。但是在现在这种情况下，`key` 属性被隐式地设置为了 `index`。
+这也就是为什么会出现这种问题（以 `c2` 的长度来进行 `for` 循环，以 `index` 为基准进行与 `c1` 中元素的 `patch` 对比更新）。
 
-方針としては、まず新しい node の key と index のマップを生成します。
+## 用 key 属性来实现 patch
+
+这是由一个名为 `patchKeyedChildren` 的函数来实现的（让我们在 Vue 源码中找到它）。
+
+方法是首先为所有新节点创建一个由节点 `key` 和节点下标 `index` 组成 `Map` 映射。
 
 ```ts
 let i = 0
@@ -112,7 +118,7 @@ for (i = s2; i <= e2; i++) {
 }
 ```
 
-本家の Vue ではこの patchKeyedChildren は５のパートに分かれます。
+在最初的 Vue 的源码中，这个 `patchKeyedChildren` 分为 5 个部分。
 
 1. sync from start
 2. sync from end
@@ -120,30 +126,33 @@ for (i = s2; i <= e2; i++) {
 4. common sequence + unmount
 5. unknown sequence
 
-ですが、上の 4 つは最適化のようなものなので、機能的には最後の `unknown sequence` だけで動作可能します。
-なので、まずは`unknown sequence`の部分を読み進めて実装することにしましょう。
+然而，前面四个都只能算是最简单的情况，只有最后一个 `unknown sequence` 在功能实现上是最重要的。
 
-まずは、要素の移動のことは忘れて、key を元に VNode を patch していきましょう。
-先ほど作った`keyToNewIndexMap`を利用して、n1 と n2 の組を算出して patch します。
-この時点で、新しくマウントするものや、アンマウントする必要があればその処理も行ってしまいます。
+但是，以上四个都是优化，因此在功能上只有最后一个“未知序列”可以工作。
+因此，让我们直接从 `unknown sequence` 部分开始实现。
 
-ざっくりいうとこういうこと ↓ (かなり省略しています。詳しくは vuejs/core の renderer.ts を読んでみてください。)
+首先，我们先忽略元素移动的这种情况，只根据 `key` 完成 `VNode` 的 `patch` 更新。
+
+利用我们刚刚创建的 `keyToNewIndexMap`，我们可以计算出 `c1` 与 `c2` 之间节点的对应关系并更新他们。
+在这之后，你必须要处理剩下的新元素挂载或者旧元素的移除。
+
+大概的意思就是这样了 ↓ (这里我省略了很多内容。详细信息大家可以阅读 vuejs/core 的 renderer.ts 部分的源代码。)
 
 ```ts
 const toBePatched = e2 + 1
-const newIndexToOldIndexMap = new Array(toBePatched) // 新indexと旧indexとのマップ
+const newIndexToOldIndexMap = new Array(toBePatched) // 新 index 索引与旧 index 索引的映射
 for (i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
 
-// e1 (旧 len)を元にループ
+// 基于 e1 (旧元素数组的长度) 遍历
 for (i = 0; i <= e1; i++) {
   const prevChild = c1[i]
   newIndex = keyToNewIndexMap.get(prevChild.key)
   if (newIndex === undefined) {
-    // 移動先が見つからなければアンマウント
+    // 如果在 keyToNewIndexMap 找不到对应关系，说明需要卸载
     unmount(prevChild)
   } else {
-    newIndexToOldIndexMap[newIndex] = i + 1 // マップ形成
-    patch(prevChild, c2[newIndex] as VNode, container) // パッチ処理
+    newIndexToOldIndexMap[newIndex] = i + 1 // 新旧索引对应关系
+    patch(prevChild, c2[newIndex] as VNode, container) // patch 对比更新
   }
 }
 
@@ -151,22 +160,27 @@ for (i = toBePatched - 1; i >= 0; i--) {
   const nextIndex = i
   const nextChild = c2[nextIndex] as VNode
   if (newIndexToOldIndexMap[i] === 0) {
-    // マップが存在しない(初期値のまま)のであれば新しくマウントするということになる。　(真にはあって、旧にはないということなので)
+    // 如果新旧索引映射数组中没有对应的旧节点索引（依旧是 newIndexToOldIndexMap 初始化时的状态（0））
+    // 则说明这是一个新元素，需要执行挂载（即实际上原来不存在这个节点）
     patch(null, nextChild, container, anchor)
   }
 }
 ```
 
-## 要素の移動
+## 移动元素
 
-## 手法
+## 方法
 
 ### Node.insertBefore
 
-現時点では、key の一致のよってそれぞれの要素を更新しているだけなので、移動していた場合は所定の位置に移動させる処理を書かなくてはなりません。
+目前，我们根据 `key` 属性的匹配来完成了元素的更新，但是没有处理位置移动。
+所以，我们现在还需要实现一个移动元素到指定位置的操作函数。
 
-まず、どうやって要素を移動するかについてですが、nodeOps の insert に anchor の指定をします。
-anchor というのは名前の通りアンカーで、runtime-dom に実装した nodeOps を見てもらえればわかるのですが、この insert メソッドは`insertBefore`というメソッドで実装されています。
+首先，我们来讨论一下如何移动元素。
+
+我们在之前的 `nodeOps` 中实现的 `insert` 函数里定义了一个参数 `anchor`。
+`anchor` 顾名思义，就是 “锚点” 的意思。
+如果您查看我们在 `runtime-dom` 中编写的 `insert` 方法，可以看到它是用 `insertBefore` 方法实现的。
 
 ```ts
 export const nodeOps: Omit<RendererOptions, 'patchProp'> = {
@@ -179,24 +193,26 @@ export const nodeOps: Omit<RendererOptions, 'patchProp'> = {
 }
 ```
 
-このメソッドは第二引数に node を渡すことで、その node の直前に insert されるようになります。  
+将锚点节点当做第二个参数传递给 `insertBefore`，则原节点会插入到锚点节点的前面。
 https://developer.mozilla.org/en-US/docs/Web/API/Node/insertBefore
 
-これを利用して実際の DOM を移動させます。
+我们使用这个方法来实现 DOM 节点的实际移动
 
-### LIS (Longest Increasing Subsequence)
+### LIS (Longest Increasing Subsequence，最长递增子序列)
 
-そして、どのように移動のアルゴリズムを書いていくかですが、こちらはちょっとだけ複雑です。  
-DOM 操作というのは JS を動かすのに比べてかなりコストが高いので、なるべく余計な移動がないように移動回数は最小限にしたいのです。  
-そこで、「最長増加部分列 (Longest Increasing Subsequence)」というものを利用します。  
-これがどのようなものかというと、名前の通りなんですが、最長の増加部分列です。  
-増加部分列というのは、例えば以下のような配列があったとき、
+关于如何实现节点的移动算法，还是有点复杂的。
+
+我们都知道 DOM 操作与运行 JS 计算相对性能消耗要昂贵得多，因此我们都希望能尽可能地减少移动次数，以便避免出现额外移动（多余移动操作）。
+
+所以，我们使用所谓的 “最长递增子序列” 算法。顾名思义，就是找到数组中最长且逐步递增的子序列。
+
+例如，当存在如下数组时：
 
 ```
 [2, 4, 1, 7, 5, 6]
 ```
 
-増加部分列は以下のようにいくつか存在します。
+它存在这样几个递增子序列。
 
 ```
 [2, 4]
@@ -216,11 +232,11 @@ DOM 操作というのは JS を動かすのに比べてかなりコストが高
 [1, 5, 6]
 ```
 
-増加している部分列です。このうち、最長のものが「最長増加部分列」です。  
-つまり、今回で言うと、`[2, 4, 5, 6]`が最長増加部分列となります。
-そして、Vue ではこの 2, 4, 5, 6 に該当する index を結果の配列として扱っています。　(つまり `[0, 1, 4, 5]`)。
+它们都是逐渐递增的序列，其中最长的序列就是 “最长递增子序列”。
 
-ちなみにこんな感じの関数です。
+换句话说，上面的 `[2, 4, 5, 6]` 就是最长的递增子序列，所以在 Vue 中，`[2, 4, 5, 6]` 对应的索引数组被视为计算结果（即 `[0, 1, 4, 5]`）。
+
+大家可以看一下这个示例函数：
 
 ```ts
 function getSequence(arr: number[]): number[] {
@@ -265,21 +281,23 @@ function getSequence(arr: number[]): number[] {
 }
 ```
 
-これをどう利用するかというと、newIndexToOldIndexMap から最長増加部分列を算出し、それを基準にして、それ以外の node を insertBefore で差し込んでいきます。
+我们将使用此函数从 `newIndexToOldIndexMap` 中计算出最长递增子序列，并在此基础上使用 `insertBefore` 插入其他节点。
 
-## 具体例
+## 具体示例
 
-ちょっとわかりづらいので具体例です。
+现在我们结合一个具体的示例，来让大家更好的理解。
 
-c1 と c2 という二つの vnode の配列を考えます。c1 が更新前で c2 が更新後で、それぞれが持つ子供はそれぞれ key 属性を持っています。(実際には key 以外の情報を持っています。)
+假设现在我们有 `c1` 和 `c2` 两个 `vnode` 数组，其中 `c1` 对应更新前的状态，`c2` 对应更新后的状态。
+每个一个 `vnode` 对象都有一个 `key` 属性（当然，实际上每个 `vnode` 对象还有其他信息）。
 
 ```js
 c1 = [{ key: 'a' }, { key: 'b' }, { key: 'c' }, { key: 'd' }]
 c2 = [{ key: 'a' }, { key: 'b' }, { key: 'd' }, { key: 'c' }]
 ```
 
-これらを元にまずは keyToNewIndexMap を生成します。(key と、それに対する c2 の index の map)
-※ 以下は先ほど紹介したコードです。
+在此基础上，我们生成一个 `keyToNewIndexMap` 对象（上文中有介绍，由 `c2` 中的 `key` 与 `index` 索引组成的 `Map` 对象）
+
+※ 以下就是我们之前介绍过的代码。
 
 ```ts
 const keyToNewIndexMap: Map<string | number | symbol, number> = new Map()
@@ -293,39 +311,39 @@ for (i = 0; i <= e2; i++) {
 // keyToNewIndexMap = { a: 0, b: 1, d: 2, c: 3 }
 ```
 
-続いて newIndexToOldIndexMap を生成します。
-※ 以下は先ほど紹介したコードです。
+接下来，我们生成 `newIndexToOldIndexMap` 对象。
+
+※ 一样是上文介绍过的内容。
 
 ```ts
-// 初期化
-
+// 初始化
 const toBePatched = c2.length
-const newIndexToOldIndexMap = new Array(toBePatched) // 新indexと旧indexとのマップ
+const newIndexToOldIndexMap = new Array(toBePatched) // 新索引与旧索引的映射
 for (i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
 
 // newIndexToOldIndexMap = [0, 0, 0, 0]
 ```
 
 ```ts
-// patchをしつつmove用にnewIndexToOldIndexMapを生成する
+// 在 patch 执行时生成用于移动元素的 newIndexToOldIndexMap 对象
 
-// e1 (旧 len)を元にループ
+// 基于 e1 (旧vnode 数组的长度) 进行循环
 for (i = 0; i <= e1; i++) {
   const prevChild = c1[i]
   newIndex = keyToNewIndexMap.get(prevChild.key)
   if (newIndex === undefined) {
-    // 移動先が見つからなければアンマウント
+    // 在新 vnode 数组中找不到对应元素，则移除旧节点
     unmount(prevChild)
   } else {
-    newIndexToOldIndexMap[newIndex] = i + 1 // マップ形成
-    patch(prevChild, c2[newIndex] as VNode, container) // パッチ処理
+    newIndexToOldIndexMap[newIndex] = i + 1 // 得到同一节点的新旧索引映射
+    patch(prevChild, c2[newIndex] as VNode, container) // 对比更新
   }
 }
 
 // newIndexToOldIndexMap = [1, 2, 4, 3]
 ```
 
-そして、得られた newIndexToOldIndexMap から最長増加部分列を取得します。(ここから新実装)
+然后，从生成的 `newIndexToOldIndexMap` 中获取到最长递增索引部分（这里是新添加的）
 
 ```ts
 const increasingNewIndexSequence = getSequence(newIndexToOldIndexMap)
@@ -337,14 +355,15 @@ j = increasingNewIndexSequence.length - 1
 for (i = toBePatched - 1; i >= 0; i--) {
   const nextIndex = i
   const nextChild = c2[nextIndex] as VNode
-  const anchor =
-    nextIndex + 1 < l2 ? (c2[nextIndex + 1] as VNode).el : parentAnchor // ※ parentAnchor はとりあえず引数で受け取った anchor だと思ってもらえれば。
+
+  // ※ 如果您可以将 parentAnchor 视为作为参数接收的锚点
+  const anchor = nextIndex + 1 < l2 ? (c2[nextIndex + 1] as VNode).el : parentAnchor
 
   if (newIndexToOldIndexMap[i] === 0) {
-    // newIndexToOldIndexMap は初期値が 0 なので、0 の場合は古い要素への map が存在しない、つまり新しい要素だというふうに判定している。
+    // newIndexToOldIndexMap 的初始值为 0，所以如果为 0，则判定不存在到旧元素的映射，说明是新增元素。
     patch(null, nextChild, container, anchor)
   } else {
-    // i と increasingNewIndexSequence[j] が一致しなければ move する
+    // 如果 i 和 increaseNewIndexSequence[j] 不匹配则说明需要移动
     if (j < 0 || i !== increasingNewIndexSequence[j]) {
       move(nextChild, container, anchor)
     } else {
@@ -354,17 +373,17 @@ for (i = toBePatched - 1; i >= 0; i--) {
 }
 ```
 
-## 実際に実装してみよう。
+## 实际实现一下吧。
 
-さて、方針についてはざっと説明したので実際に `patchKeyedChildren` を実装してみましょう。
-Todo だけまとめておきます。
+现在，我们只是大概说了一下如何实现函数 `patchKeyedChildren` 的思路，现在我们尝试自己实现一下吧。
 
-1. anchor をバケツリレーできるように (move のための insert で使うので)
-2. c2 を元に key と index の map を用意する
-3. key の map を元に c2 の index と c1 の index の map を用意する  
-   この段階で、c1 ベースのループと c2 ベースのループで patch 処理をしておく (move はまだ)
-4. 3 で得た map を元に最長増加部分列を求める
-5. 4 で得た部分列と c2 を元に move する
+这里总结一下实现步骤：
 
-ここからは本家 Vue の実装を見てもらってもいいですし、もちろん chibivue を参考にしてもらっても良いです。
-(おすすめなのは本家 Vue を実際に読みながらです。)
+1. 允许透传 `anchor` 参数 (在 `insert` 方法中可以用这个参数进行元素移动)
+2. 以 `c2` 为基础，准备 `key` 和 `index` 的映射对象 `map`。
+3. 以上一步创建的 `map` 对象，再次生成 `c2` 中的 `index` 与 `c1` 中对应元素的 `index` 的新旧索引对象。  
+   在此阶段，需要基于 `c1` 和基于 `c2` 的循环（不包括 `move` ）中执行 `patch` 更新。
+4. 根据步骤 3 中得到的映射对象，找出最长递增子序列。
+5. 根据步骤 4 和 `c2` 中获得的子序列执行 `move` 元素移动。
+
+你可以参考 Vue.js 或者 Chibivue 的源代码实现来完成（我建议是在阅读 Vue.js 的源码的同时进行代码实现）。
