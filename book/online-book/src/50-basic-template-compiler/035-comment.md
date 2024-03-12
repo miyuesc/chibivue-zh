@@ -226,4 +226,4 @@ const processCommentNode = (
 
 さて、ここまででコメントアウトが実装できたはずです。実際に動作を確認してみましょう！
 
-ここまでのソースコード: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/035_comment)
+当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/035_comment)

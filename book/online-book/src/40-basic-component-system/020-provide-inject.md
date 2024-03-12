@@ -76,5 +76,5 @@ const LoggerKey = Symbol() as InjectionKey<Logger>
 app.provide(LoggerKey, window.console.log)
 ```
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/020_provide_inject)

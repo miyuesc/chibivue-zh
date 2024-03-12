@@ -33,7 +33,7 @@ h 関数も第 3 引数として配列だけではなく、レンダー関数を
 
 (children の normalize 実装に伴って ShapeFlags を少々変更しています。)
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/050_component_slot)
 
 ## 名前付きスロット/スコープ付きスロットの実装
@@ -79,5 +79,5 @@ const app = createApp({
 })
 ```
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/060_slot_extend)

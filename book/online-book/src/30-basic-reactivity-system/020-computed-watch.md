@@ -139,7 +139,7 @@ const app = createApp({
 app.mount('#app')
 ```
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/050_computed)
 (setter 込みはこちら):  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/060_computed_setter)
@@ -194,7 +194,7 @@ export function watch<T>(
 }
 ```
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/070_watch)
 
 ## watch の その他の api
@@ -255,7 +255,7 @@ export function watch<T>(
   }) // automatically in deep mode
   ```
 
-ここまでのソースコード:
+当前源代码位于:
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/080_watch_api_extends)
 
 ## watchEffect
@@ -276,7 +276,7 @@ count.value++
 
 イメージてには immediate のような実装をすれば OK です。
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/090_watch_effect)
 
 ---

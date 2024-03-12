@@ -235,5 +235,5 @@ arg が動的な場合は、特定が不可能なため、normalizeProps とい�
 
 次回は v-on を実装していきます。
 
-ここまでのソースコード:  
+当前源代码位于:  
 [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/020_v_bind)

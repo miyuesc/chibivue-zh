@@ -81,7 +81,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
             link: '/20-basic-virtual-dom/010-patch-keyed-children',
           },
           {
-            text: 'VNodes 类型的位级表示',
+            text: 'VNode 类型的位表示',
             link: '/20-basic-virtual-dom/020-bit-flags',
           },
           {

@@ -188,5 +188,5 @@ type ComponentOptions<D = {}, M extends MethodOptions = MethodOptions> = {
 ぱっと見ジェネリクスがたくさんあったり、型の変換(inject から key だけを取り出したり)が混ざっているのでウッとなってしまうかもしれませんが落ち着いて原理に戻って実装すれば大丈夫なはずです。  
 本書のコードでは本家の Vue をインスパイアして、`CreateComponentPublicInstance`という抽象化を一段階挟んでいたり、`ComponentPublicInstanceConstructor`と言う型を実装していますが、あまり気にしないでください。(興味があればそこも読んでみてください！　)
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/070_options_api)

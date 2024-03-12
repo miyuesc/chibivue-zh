@@ -18,5 +18,5 @@
 
 ここまでやってきた方なら説明がなくてもソースコードを読みながら実装できるはずです！
 
-ここまでのソースコード:  
+当前源代码位于:  
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/150_other_apis)
