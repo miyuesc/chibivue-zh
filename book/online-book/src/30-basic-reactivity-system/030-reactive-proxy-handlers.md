@@ -1,15 +1,17 @@
-# 様々な Reactive Proxy Handler
+# 各个响应式代理处理程序
 
 ::: warning
-2023 年 の 12 月末に [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) がリリースされましたが、これには [reactivity のパフォーマンス改善](https://github.com/vuejs/core/pull/5912) が含まれています。  
-このオンラインブックはそれ以前の実装を参考にしていることに注意しくてださい。  
-然るべきタイミングでこのオンラインブックも追従する予定です。  
+2023 年 12 月月底 [Vue 3.4](https://blog.vuejs.org/posts/vue-3-4) 发布了，其中包括了 [reactivity 的性能优化](https://github.com/vuejs/core/pull/5912) 部分。  
+需要注意的是，本书参考的是 Vue.js 之前的实现方式。  
+本章内容不会有太大改变，但是文件结构可能略有调整，代码也有部分改动。
+我也会在日后对这本书进行相应的更新。  
 :::
 
-## reactive にしたくないオブジェクト
+## 不想成为响应式对象（不希望被响应化处理）
 
-さて、ここでは現状の Reactivity System のある問題について解決していきます。  
-まずは以下のコードを動かしてみてください。
+现在，我们还需要解决一个响应式系统的问题。
+
+首先，我们运行一下下面这段代码。
 
 ```ts
 import { createApp, h, ref } from 'chibivue'
@@ -35,11 +37,11 @@ const app = createApp({
 app.mount('#app')
 ```
 
-コンソールを見てみると、以下のようになっていることが観測できるかと思います。
+打开浏览器控制台，我们可以看到这样的输出内容。
 
 ![reactive_html_element](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/reactive_html_element.png)
 
-ここで、focus をする処理を加えてみましょう。
+现在，我们添加一个输入框的自动聚焦（`focus`）处理。
 
 ```ts
 import { createApp, h, ref } from 'chibivue'
@@ -69,18 +71,19 @@ const app = createApp({
 app.mount('#app')
 ```
 
-なんと、エラーになってしまいます。
+但是很奇怪，浏览器这时候抛出了一个错误。
 
 ![focus_in_reactive_html_element](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/focus_in_reactive_html_element.png)
 
-これの原因としては、document.getElementById によって取得した要素自体を元に Proxy を生成してしまっているためです。
+原因是在 `getRef` 的时候，`inputRef.value` 的值实际上一个根据 `document.getElementById` 得到的元素创建的 `Proxy` 对象。
 
-Proxy を生成してしまうと値は当然元のオブジェクトではなく Proxy になってしまいますから、HTML 要素としての機能が失われてしまっているのです。
+这时我们再操作，调用的就是这个 `Proxy` 对象而不是原始的 `HTML` 元素对象，所以会导致一些方法和特性失效。
 
-## reactive Proxy を生成する前にオブジェクトを判定する。
+## 在生成响应式代理对象之前先确定是不是对象
 
-判定方法はとてもシンプルです。`Object.prototype.toString`を利用します。
-先ほどのコードで、Object.prototype.toString を使うと HTMLInputElement はどのように判定されるかみてみましょう。
+判断方法也很简单，借助 `Object.prototype.toString` 就可以实现了。
+
+在刚刚的代码中，让我们来看看 `Object.prototype.toString` 在遇到 `HTMLInputElement` 时是怎么样确定的。
 
 ```ts
 import { createApp, h, ref } from 'chibivue'
@@ -112,26 +115,26 @@ app.mount('#app')
 
 ![element_to_string](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/element_to_string.png)
 
-このようにしてどのようなオブジェクトなのかというのを知ることができます。ややハードコードですが、この判定関数を一般化します。
+这样我们就可以确定一个对象的类型了，虽然看起来有点硬编码的样子，但是我们可以将这个方法进行一下优化。
 
 ```ts
 // shared/general.ts
-export const objectToString = Object.prototype.toString // isMapやisSetなどで既出
+export const objectToString = Object.prototype.toString // 在 isMap 和 isSet 之前就已经出现的方法
 export const toTypeString = (value: unknown): string =>
   objectToString.call(value)
 
-// 今回追加する関数
+// 这次我们添加的工具函数
 export const toRawType = (value: unknown): string => {
   return toTypeString(value).slice(8, -1)
 }
 ```
 
-slice しているのは、`[Object hoge]`の hoge に当たる文字列を取得するためです。
+我们使用 `slice` 对 `toTypeString` 的结果进行了拆分，也是为了能直接从 `[Object hoge]` 这样的结果中拿到 `hoge` 这个字符串。
 
-そして、reactive toRawType によってオブジェクトの種類を判別し、分岐していきましょう。  
-HTMLInput の場合は Proxy の生成をスキップするようにします。
+然后，我们可以在 `reactive` 中通过 `toRawType` 进行不同对象类型的分支判断。
+对于 `HTMLInput` 这类元素就直接跳过代理生成。
 
-reactive.ts の方で、rawType を取得し、reactive のターゲットとなるオブジェクトのタイプを判定します。
+在 `reactive.ts` 中，也是获取目标对象的 `rawType` 来确定 `reactive` 方法的返回数据类型。
 
 ```ts
 const enum TargetType {
@@ -168,19 +171,19 @@ export function reactive<T extends object>(target: T): T {
 }
 ```
 
-これで先ほどのフォーカスのコードが動くようになったはずです！
+这样的话，刚刚的设置输入框焦点的代码应该就可以正常执行了。
 
 ![focus_in_element](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/focus_in_element.png)
 
-## TemplateRefs を実装してみる
+## 尝试实现 TemplateRefs
 
-せっかく Ref に HTML 要素を入れられるようになったので、TemplateRef を実装してみましょう。
+既然现在已经可以将 `HTML` 元素放置到 `Ref` 对象上，那么现在我们就来实现一下 `TemplateRefs` 吧。
 
-ref は ref 属性を利用することで template への参照を取ることができます。
+通过给模板元素设置 `ref` 属性，我们可以在元素或者子组件挂载后得到它们的对象实例引用。
 
-https://vuejs.org/guide/essentials/template-refs.html
+https://cn.vuejs.org/guide/essentials/template-refs.html
 
-目標は以下のようなコードが動くようになることです。
+我们当前的目标就是能正确执行下面的代码。
 
 ```ts
 import { createApp, h, ref } from 'chibivue'
@@ -203,15 +206,16 @@ const app = createApp({
 app.mount('#app')
 ```
 
-ここまでやってきたみなさんならば、実装方法はもう見えてるかと思います。
-そう、VNode に ref を持たせて render 時に値をぶち込んでやればいいわけです。
+对于已经完整的学习到了这个位置的人来说，我想大家应该已经知道了如何实现这个功能。
+
+没错，只需要在 `VNode` 中添加一个 `ref` 属性定义，并且在 `render` 渲染过程中完成赋值即可。
 
 ```ts
 export interface VNode<HostNode = any> {
   // .
   // .
   key: string | number | symbol | null
-  ref: Ref | null // これ
+  ref: Ref | null // 这里
   // .
   // .
 }
