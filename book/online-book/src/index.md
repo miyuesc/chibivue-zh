@@ -4,9 +4,9 @@ layout: home
 
 hero:
   name: "chibivue"
-  text: "一步一步，从一行 \"Hello, World\" 开始"
+  text: "一步一步，从一行 \"Hello, World\" 开始实现 MiniVue"
   tagline: 由 VitePress 构建
-  image: https://github.com/Ubugeeei/chibivue/blob/main/book/images/logo/logo.png?raw=true
+  image: ./logo.png?raw=true
   actions:
     - theme: brand
       text: 深入本书 ->

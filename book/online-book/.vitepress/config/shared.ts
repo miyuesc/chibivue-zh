@@ -8,13 +8,7 @@ export const sharedConfig = defineConfig({
   srcDir: 'src',
   srcExclude: ['__wip'],
   head: [
-    [
-      'link',
-      {
-        rel: 'icon',
-        href: 'https://github.com/Ubugeeei/chibivue/blob/main/book/images/logo/logo.png?raw=true',
-      },
-    ],
+    ['link', { rel: 'icon', href: './logo.png?raw=true' }],
 
     // source og
     ['meta', { property: 'source_og:site_name', content: 'chibivue' }],
@@ -38,8 +32,7 @@ export const sharedConfig = defineConfig({
       'meta',
       {
         property: 'source_og:image',
-        content:
-          'https://github.com/Ubugeeei/chibivue/blob/main/book/images/logo/chibivue-img.png?raw=true',
+        content: './chibivue-img.png?raw=true',
       },
     ],
     ['meta', { property: 'source_og:image:alt', content: 'chibivue' }],
@@ -66,7 +59,7 @@ export const sharedConfig = defineConfig({
     ],
   ],
   themeConfig: {
-    logo: 'https://github.com/Ubugeeei/chibivue/blob/main/book/images/logo/logo.png?raw=true',
+    logo: './logo.png?raw=true',
     search: { provider: 'local' },
     outline: 'deep',
     socialLinks: [

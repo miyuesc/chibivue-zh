@@ -23,19 +23,23 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
           node-version: 18
+
       - uses: pnpm/action-setup@v2
         name: Install pnpm
         with:
           version: 8
           run_install: false
+
       - name: Get pnpm store directory
         shell: bash
         run: |
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
       - uses: actions/cache@v3
         name: Setup pnpm cache
         with:
@@ -43,16 +47,34 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
+
       - name: Setup Pages
         uses: actions/configure-pages@v3
+
       - name: Install dependencies
         run: pnpm install
+
       - name: Build with VitePress
         run: pnpm run book:build
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
           path: book/online-book/.vitepress/dist
+
+      - name: Deploy 🚀
+        uses: cross-the-world/scp-pipeline@master
+        env:
+          WELCOME: "ssh scp ssh pipelines"
+          LASTSSH: "Doing something after copying"
+        with:
+          host: ${{ secrets.DR_HOST }}
+          user: ${{ secrets.DR_USER }}
+          pass: ${{ secrets.DR_PASS }}
+          port: ${{ secrets.DR_PORT }}
+          connect_timeout: 10s
+          local: './book/online-book/.vitepress/dist/*'
+          remote: /web-site/main
 
   deploy:
     runs-on: ubuntu-latest
