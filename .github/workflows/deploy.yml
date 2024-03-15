@@ -48,19 +48,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-
       - name: Install dependencies
         run: pnpm install
 
       - name: Build with VitePress
         run: pnpm run book:build
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
-        with:
-          path: book/online-book/.vitepress/dist
 
       - name: Deploy 🚀
         uses: cross-the-world/scp-pipeline@master
@@ -75,11 +67,3 @@ jobs:
           connect_timeout: 10s
           local: './book/online-book/.vitepress/dist/*'
           remote: /web-site/main
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2

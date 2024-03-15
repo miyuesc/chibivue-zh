@@ -5,6 +5,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
     nav: [
       { text: '主页', link: '/' },
       { text: '开始学习', link: '/00-introduction/010-about' },
+      { text: '翻译进度：第四章第三节', link: '' },
     ],
     sidebar: [
       {
