@@ -228,8 +228,8 @@ export interface VNode<HostNode = any> {
 但是目前我们不需要完整的实现所有功能，只要能让上面的代码正常工作就行了。
 
 顺便再说一下，如果这个 `ref` 绑定的是一个 `component` 组件，我们需要把这个组件的 `setupContext` 结果赋值给这个 `ref` 对应的变量。
-ついでに、component だった場合は component の setupContext を ref に代入してあげましょう。  
-(※ ここは本当はコンポーネントの proxy を渡すべきなんですが、まだ未実装のため setupContext ということにしています。)
+
+※ 我们实际上应该传递组件的 `proxy` 代理对象，但由于它还没有实现，所以我们将其命名为 `setupContext`。
 
 ```ts
 import { createApp, h, ref } from 'chibivue'
@@ -263,26 +263,26 @@ const app = createApp({
 app.mount('#app')
 ```
 
-当前源代码位于:  
+当前源代码位于: 
 [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/110_template_refs)
 
-## key が増減するオブジェクトに対応する
+## 对象属性的增加与减少
 
-実は、今の実装では key が増減するオブジェクトに対応できていません。
-この、「key が増減するオブジェクト」と言うのは配列も含みます。  
-要するに、以下のようなコンポーネントが正常に動作しません。
+目前，我们的实现并不能支持对象的属性个数（对象的 `key` 的个数）变化的响应，也不能处理数组元素个数变化。
+
+换而言之，下面这个组件就无法正常的工作。
 
 ```ts
 const App = {
   setup() {
     const array = ref<number[]>([])
     const mutateArray = () => {
-      array.value.push(Date.now()) // trigger しても何も effect がない (この時、set の key は "0")
+      array.value.push(Date.now()) // 即使数组变化也没有任何 effect 被触发 (此时 set 的 key 为 "0"，即 array.value[0] = Date.now()) 
     }
 
     const record = reactive<Record<string, number>>({})
     const mutateRecord = () => {
-      record[Date.now().toString()] = Date.now() // trigger しても何も effect がない (key 新しく設定された key)
+      record[Date.now().toString()] = Date.now() // 即使对象变化也没有任何 effect 被触发 (此时给对象设置了新的 key) 
     }
 
     return () =>
@@ -297,11 +297,11 @@ const App = {
 }
 ```
 
-これを解決するにはどうしたら良いでしょうか?
+我们该怎么解决这个问题呢?
 
-### 配列の場合
+### 针对数组的场景
 
-配列もいってしまえばオブジェクトなので、新しい要素を追加するとその index が key として Proxy の set の handler に入ってきます。
+因为数组也算是一个 “对象”，所以当添加一个新元素时，会将它的新索引作为 `key` 进入 `Proxy set` 的处理程序。
 
 ```ts
 const p = new Proxy([], {
@@ -315,12 +315,11 @@ const p = new Proxy([], {
 p.push(42) // 0
 ```
 
-しかしこれらの key をそれぞれ track するわけにはいきません。
-そこで、length を track することで配列の変更をトリガーするようにします。
+但是，我们不可能单独追踪数组中的每一个元素（应该是 `key`）。所以，我们将通过追踪数组长度来触发数组的变更。
 
-length を track すると言いましたが、実はすでに track されるようになっています。
+虽然说是要实现追踪数组长度，但是实际上我们已经在追踪数组长度变化了。
 
-以下のようなコードをブラウザなどで実行してみると JSON.stringify で配列を文字列化した際に length が呼ばれていることがわかります。
+如果您在浏览器中运行以下代码，可以看到当使用 `JSON.stringify` 将数组字符串化时，数组的 `length` 属性也会被读取。
 
 ```ts
 const data = new Proxy([], {
@@ -335,10 +334,11 @@ JSON.stringify(data)
 // get! toJSON
 ```
 
-つまりすでに length には effect が登録されているので、あとは index が set された時に、この effect を取り出して trigger してあげれば良いわけです。
+也就是说，现在 `length` 属性实际上已经注册了对应的 `effect`，之后只要在 `index` 索引被更新时提取这个 `effect` 然后触发它就可以了。
 
-入ってきた key が index かどうかを判定して、index だった場合は length の effect を trigger するようにします。
-他にも dep がある可能性はもちろんあるので、 deps という配列に切り出して、effect を詰めてまとめて trigger してあげます。
+首先我们检查当前设置的属性的 `key` 是不是 `index` 索引，如果是则触发 `length` 对应的 `effect`。
+
+当然，这些索引可能还有其他的依赖关系，所以我们将它的依赖全部提取到一个 `deps` 数组中，然后统一触发。
 
 ```ts
 export function trigger(target: object, key?: unknown) {
@@ -350,7 +350,7 @@ export function trigger(target: object, key?: unknown) {
     deps.push(depsMap.get(key))
   }
 
-  // これ
+  // 这里
   if (isIntegerKey(key)) {
     deps.push(depsMap.get('length'))
   }
@@ -372,18 +372,19 @@ export const isIntegerKey = (key: unknown) =>
   '' + parseInt(key, 10) === key
 ```
 
-これで配列の場合は動くようになりました。
+这样，应该就可以正常响应数组的变化了。
 
-### オブジェクト(レコード)の場合
+### 针对对象的场景
 
-続いてはオブジェクトですが、配列とは違い length という情報は持っていません。
+接下来就是处理对象了。对数组不同的是，对象是没有 `length` 属性的。
 
-これは一工夫します。  
-`ITERATE_KEY` というシンボルを用意してこれを配列の時の length のように使います。  
-何を言っているのかよく分からないかもしれませんが、depsMap はただの Map なので、別に勝手に用意したものを key として使っても問題ありません。
+我们需要进行一些修改。
 
-配列の時と少し順番は変わりますが、まず trigger から考えてみます。
-あたかも `ITERATE_KEY` というものが存在し、そこに effect が登録されているかのような実装をしておけば OK です。
+既然对象没有 `length` 这样的属性，那么我们可以增加一个 `ITERATE_KEY` 这样的 `Symbol` 值来起到和 `length` 一样的效果。
+
+这里可能理解起来有点儿复杂。但是你只要知道 `depsMap` 本身是一个 `Map` 对象，所以我们可以用自己定义的数据来作为 `key` 使用。
+
+与之前的数组的处理顺序不一样，我们需要先思考 `trigger` 触发器怎么定义。只要我们实现了一个名为 `ITERATE_KEY` 的 `Symbol` 常量，当 `targetMap` 中能获取到这个对象的 `ITERATE_KEY` 对应的 `deps` 数据时，执行它的副作用函数就可以了。
 
 ```ts
 export const ITERATE_KEY = Symbol()
@@ -398,7 +399,7 @@ export function trigger(target: object, key?: unknown) {
   }
 
   if (!isArray(target)) {
-    // 配列でない場合は、ITERATE_KEY に登録された effect を trigger する
+    // 如果不是数组，则触发注册的 `ITERATE_KEY` 对应的 effect。
     deps.push(depsMap.get(ITERATE_KEY))
   } else if (isIntegerKey(key)) {
     // new index added to array -> length changes
@@ -413,15 +414,15 @@ export function trigger(target: object, key?: unknown) {
 }
 ```
 
-問題は、この `ITERATE_KEY` に対してどう effect をトラックするかです。
+但是现在的问题是怎么样去追踪 `ITERATE_KEY` 对应的 `effect` 副作用。
 
-ここで、 `ownKeys` と言う Proxy ハンドラを利用します。
+这里，我们可以使用 `proxy` 提供的 `ownKeys` 代理处理函数。
 
-https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/Proxy/ownKeys
+https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Proxy/Proxy/ownKeys
 
-ownKeys は `Object.keys()` や `Reflect.ownKeys()` などで呼ばれますが、実は `JSON.stringify` でも呼ばれます。
+`ownKeys` 除了会被 `Object.keys()` 和 `Reflect.ownKeys()` 这样的函数调用，实际上 `JSON.stringify` 也会触发。
 
-試しに以下のコードをブラウザなどで動かしてみるとそれを確認できます。
+您可以尝试一下再浏览器控制台执行下面的代码，就可以看到打印结果了。
 
 ```ts
 const data = new Proxy(
@@ -440,8 +441,9 @@ const data = new Proxy(
 JSON.stringify(data)
 ```
 
-あとはこれを利用して `ITERATE_KEY` を track すれば良いわけです。
-配列だった場合は、必要ないのでテキトーに length を track してあげます。
+然后，我们就可以在这里使用 `ITERATE_KEY` 进行追踪了。
+
+当然，如果是数组的话是不需要这样的，我们直接追踪它的 `length` 就可以了。
 
 ```ts
 export const mutableHandlers: ProxyHandler<object> = {
@@ -454,11 +456,11 @@ export const mutableHandlers: ProxyHandler<object> = {
 }
 ```
 
-これでキーが増減するオブジェクトに対応でき多はずです！
+这样就可以处理对象的键的增减了！
 
-## Collection 系の組み込みオブジェクトに対応する
+## 支持 Connection 集合类的内置对象
 
-今、reactive.ts の実装を見てみると、Object と Array のみを対象としています。
+目前，我们的 `reactive.ts` 的实现还只支持 `Object` 和 `Array` 这两种数据。
 
 ```ts
 function targetTypeMap(rawType: string) {
@@ -472,13 +474,13 @@ function targetTypeMap(rawType: string) {
 }
 ```
 
-Vue.js では、これらに加え、Map, Set, WeakMap, WeakSet に対応しています。
+在 Vue.js 中，除了这些之外，还支持 `Map`、 `Set`、 `WeakMap` 和 `WeakSet`。
 
 https://github.com/vuejs/core/blob/9f8e98af891f456cc8cc9019a31704e5534d1f08/packages/reactivity/src/reactive.ts#L43C1-L56C2
 
-そして、これらのオブジェクトは別の Proxy ハンドラとして実装されています。それが、`collectionHandlers`と呼ばれるものです。
+这些对象是作为另一组 `Proxy` 处理程序实现的。它们被称为 `collectionHandlers`。
 
-ここでは、この collectionHandlers を実装し、以下のようなコードが動くことを目指します。
+在这里，我们的目标就是实现这个 `collectionHandlers`，并且让以下代码能够正常工作。
 
 ```ts
 const app = createApp({
@@ -507,14 +509,17 @@ const app = createApp({
 app.mount('#app')
 ```
 
-collectionHandlers では、add や set, delete といったメソッドの getter にハンドラを実装します。  
-それらを実装しているのが collectionHandlers.ts です。  
-https://github.com/vuejs/core/blob/9f8e98af891f456cc8cc9019a31704e5534d1f08/packages/reactivity/src/collectionHandlers.ts#L0-L1  
-TargetType を判別し、collection 型の場合 h にはこのハンドラを元に Proxy を生成します。  
-実際に実装してみましょう!
+在 `collectionHandlers` 中，我们实现了对 `add`、`set`、`delete` 等方法的 `getter` 进行处理。
 
-注意点としては、Reflect の receiver に target 自身を渡す点で、target 自体に Proxy が設定されていた場合に無限ループになることがある点です。  
-これを回避するために target に対して生のデータも持たせておくような構造に変更し、Proxy のハンドラを実装するにあたってはこの生データを操作するように変更します。
+这些实现在 `collectionHandlers.ts` 文件中。
+
+https://github.com/vuejs/core/blob/9f8e98af891f456cc8cc9019a31704e5534d1f08/packages/reactivity/src/collectionHandlers.ts
+
+然后，则是对 `TargetType` 进行判断，如果是 `collection` 类型（即 `TargetType.COLLECTION`），则根据这组处理程序生成一个 `Proxy` 代理对象。
+
+需要注意的是，要将 `target` 自身传递给 `Reflect` 的 `receiver` 方法，这样做是为了避免如果 `target` 本身已经设置了 `Proxy`， 会导致无限循环的情况。
+
+为了避免发生这种情况，我们需要对 `target` 进行结构化处理，以便在实现 `Proxy` 处理程序时对这些原始数据进行操作。
 
 ```ts
 export const enum ReactiveFlags {
@@ -526,10 +531,11 @@ export interface Target {
 }
 ```
 
-厳密には今までの通常の reactive ハンドラでもこの実装をしておくべきだったのですが、今までは特に問題なかったという点と余計な説明をなるべく省くために省略していました。  
-getter に入ってきたの key が ReactiveFlags.RAW の場合には Proxy ではなく生のデータを返すような実装にしてみましょう。
+严格来说，即便是之前实现的常规数据的 `reactive` 响应式处理程序中，也应该实现这个功能，但是由于以前没有遇到这个问题，为了尽量减少不必要的解释，我们就省略了这一点。
 
-それに伴って、target から再帰的に生データをとり、最終的に全てが生の状態のデータを取得する toRaw という関数も実装しています。
+现在让我们再尝试实现一种情况，当进入 `getter` 过程的 `key` 为 `ReactiveFlags.RAW` 时，我们应该返回原始数据而不是 `Proxy` 代理对象。
+
+并且，我们还需要实现了一个名为 `toRaw` 的函数，它从目标（`Proxy` 代理对象）中递归地获取原始数据，并最终返回获取的所有数据的原始状态（也就是响应式对象对应的原始数据）。
 
 ```ts
 export function toRaw<T>(observed: T): T {
@@ -538,9 +544,8 @@ export function toRaw<T>(observed: T): T {
 }
 ```
 
-ちなみに、この toRaw 関数は API としても提供されている関数です。
+顺便说一下，`toRaw` 函数也是 Vue.js 提供的一个 API。
 
-https://ja.vuejs.org/api/reactivity-advanced.html#toraw
+https://cn.vuejs.org/api/reactivity-advanced.html#toraw
 
-当前源代码位于:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/120_proxy_handler_improvement)
+当前源代码位于: [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/30_basic_reactivity_system/120_proxy_handler_improvement)
