@@ -1,40 +1,43 @@
-# ライフサイクルフック (Basic Component System 部門スタート)
+# 生命周期钩子 (Basic Component System 基础组件系统章节开始啦)
 
-## ライフサイクルフックを実装しよう
+## 实现生命周期钩子函数
 
-ライフサイクルフックの実装はとても簡単です。  
-ComponentInternalInstance に関数を登録して、render 時に所定のタイミングで実行してあげるだけです。  
-API 自体は runtime-core/apiLifecycle.ts に実装していきます。
+实现生命周期钩子函数其实非常简单，只需要在 `ComponentInternalInstance` 组件实例中注册对应的钩子函数，并在渲染的时候在适当的时机执行即可。
 
-一点、注意するべきところがあるとすれば、onMounted/onUnmounted/onUpdated に関してはスケジューリングを考えなければならない点です。  
-登録された関数たちはマウントやアンマウント、アップデートが完全に終わったタイミングで実行したいわけです。
+我们将在 `runtime-core/apiLifecycle.ts` 中实现这些 API。
 
-そこで、スケジューラの方で`post`という種類のキューを新たに実装します。これは既存の queue の flush が終わった後に flush されるようなものです。  
-イメージ ↓
+需要注意的一点是，在 `onMounted/onUnmounted/onUpdated` 中还需要考虑任务调度的问题。
+
+我们希望注册的函数在完全完成挂载（`onMounted`）、卸载（`onUnmounted`）或更新（`onUpdated`）后才执行。
+
+因此，在调度器中，我们将实现一个分类为 `Post` 的新任务队列(`pendingPostFlushCbs`)。这个队列会在现有队列 `flush` 全部执行完成后再执行。
+
+想象一下：
 
 ```ts
-const queue: SchedulerJob[] = [] // 既存実装
-const pendingPostFlushCbs: SchedulerJob[] = [] // 今回新しく作る queue
+const queue: SchedulerJob[] = [] // 现有实现
+const pendingPostFlushCbs: SchedulerJob[] = [] // 我们新建的队列
 
 function queueFlush() {
   queue.forEach(job => job())
-  flushPostFlushCbs() // queue の flush の後で flush する
+  flushPostFlushCbs() // 在 queue 执行完后再执行
 }
 ```
 
-また、これに伴って、pendingPostFlushCbs に enqueue するような API も実装しましょう。
-そして、それを使って renderer で作用を pendingPostFlushCbs に enqueue しましょう。
+然后，我们需要实现一个将函数加入 `pendingPostFlushCbs` 队列的 API。
 
-今回対応するライフサイクル
+然后在 `renderer` 中使用这个 API 将 `enqueue` 加入 `pendingPostFlushCbs` 队列。
 
-- onMounted
-- onUpdated
-- onUnmounted
-- onBeforeMount
-- onBeforeUpdate
-- onBeforeUnmount
+我们这次需要实现的生命周期钩子包括：
 
-以下のようなコードが動くことを目指して実装してみましょう！
+- `onMounted`
+- `onUpdated`
+- `onUnmounted`
+- `onBeforeMount`
+- `onBeforeUpdate`
+- `onBeforeUnmount`
+
+让我们尝试实现一下，确保下面的代码可以正常运行。
 
 ```ts
 import {
@@ -101,5 +104,4 @@ const app = createApp({
 app.mount('#app')
 ```
 
-当前源代码位于:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/010_lifecycle_hooks)
+当前源代码位于: [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/010_lifecycle_hooks)
