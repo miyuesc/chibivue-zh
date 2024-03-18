@@ -134,7 +134,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
             link: '/40-basic-component-system/020-provide-inject',
           },
           {
-            text: '组件代理和组件实例上下文',
+            text: '组件代理和组件上下文',
             link: '/40-basic-component-system/030-component-proxy-setup-context',
           },
           {
