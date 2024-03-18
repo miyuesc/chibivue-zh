@@ -1,4 +1,4 @@
-# 生命周期钩子 (Basic Component System 基础组件系统章节开始啦)
+# 生命周期钩子函数 (Basic Component System 基础组件系统章节开始啦)
 
 ## 实现生命周期钩子函数
 

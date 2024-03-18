@@ -130,7 +130,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
             link: '/40-basic-component-system/010-lifecycle-hooks',
           },
           {
-            text: 'Provide/Inject 变量注入',
+            text: '实现 Provide/Inject',
             link: '/40-basic-component-system/020-provide-inject',
           },
           {
