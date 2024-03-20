@@ -1,10 +1,10 @@
-# Options APIに対応する
+# 选项式 API 的支持
 
 ## Options API
 
-ここまででかなりのことを Composition API で実装することができるようになりましたが、Options API も対応してみましょう。
+到目前为止已经可以用 Composition API 实现相当多的事情了，现在试着实现对应的 Options API 吧。
 
-本書では以下を対応しています。
+目前，在本书中我们讨论了下面这些内容：
 
 - props
 - data
@@ -29,7 +29,7 @@
 - $forceUpdate
 - $nextTick
 
-実装方針としては、componentOptions.ts に applyOptions という関数を用意し、setupComponent の最後の方で実行します。
+实现思路是在 `componentOptions.ts` 中提供一个名为 `applyOptions` 的函数，并在 `setupComponent` 函数的末尾运行它。
 
 ```ts
 export const setupComponent = (instance: ComponentInternalInstance) => {
@@ -40,7 +40,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
   if (render) {
     instance.render = render as InternalRenderFunction
   }
-  // ↑ ここまでは既存実装
+  // ↑ 到目前为止我们实现的内容
 
   setCurrentInstance(instance)
   applyOptions(instance)
@@ -48,7 +48,7 @@ export const setupComponent = (instance: ComponentInternalInstance) => {
 }
 ```
 
-Options API では this を頻繁に扱うような開発者インタフェースになっています。
+在 Options API 中，还提供了一个 `this` 引用用来使用当前组件实例的内容。
 
 ```ts
 const App = defineComponent({
@@ -58,15 +58,16 @@ const App = defineComponent({
 
   methods: {
     greet() {
-      console.log(this.message) // こういうやつ
+      console.log(this.message) // 例如这样
     },
   },
 })
 ```
 
-この this は内部的にはコンポーネントの proxy を指すようになっていて、オプションを apply する際にこの proxy を bind しています。
+`this` 在内部指向组件实例的 `proxy` 代理对象，并在应用选项（`applyOptions`）时绑定此 `proxy`。
 
-実装イメージ ↓
+
+实现如下 ↓
 
 ```ts
 export function applyOptions(instance: ComponentInternalInstance) {
@@ -87,23 +88,25 @@ export function applyOptions(instance: ComponentInternalInstance) {
 }
 ```
 
-基本的にはこの原理を使って一つずつ実装していけば難しくないはずです。
+基本上我们都可以按照这种方式一个一个实现 Options API 中的所有内容。
 
-data をリアクティブにしたければ reactive 関数をここで呼び出しますし、computed したければ computed 関数をここで呼び出します。 (provide/inject も同様)
+如果您想使 `data` 中的数据变成响应式的，您可以在这里调用 `reactive` 函数，如果您想使用计算属性选项，`您可以在这里调用computed` 函数（`provide/inject` 也是一样的）。
 
-applyOptions が実行される前には setCurrentInstance によってインスタンスがセットされているので、いつもと同じようにこれまで作ってきた api(CompositionAPI)を呼んであげれば OK です。
+由于 `setCurrentInstance` 在运行 `applyOptions` 之前设置了组件实例，因此可以像往常一样调用以前实现的 API（Composition API）。
 
-`$`から始まるプロパティについては componentPublicInstance の方の実装で、PublicInstanceProxyHandlers の getter で制御しています。
+以 `$` 开头的属性是 `componentPublicInstance` 实现的，由 `PublicInstanceProxyHandlers` 中的 `getter` 控制。
 
-## Options API の型付
+## Options API 的类型
 
-機能的には上記のように実装していけばいいのですが、Options API は型付が少々複雑です。
+从功能上讲，我们可以像上面描述的那样实现它，但是 Options API 在类型处理上有点复杂。
 
-一応、本書では OptionsAPI に関しても基本的な型付はサポートしています。
+大体上，本书的实现也支持 Options API 的基础类型处理。
 
-難しいポイントとしては、各オプションのユーザーの定義によって this の型が変動する点です。data オプションで number 型の count というプロパティを定義した場合には computed や method での this には `count: number` が推論されたいわけです。
+难点在于 `this` 的类型取决于用户对每个选项的定义。
+如果使用 `data` 选项定义了一个名为 `count` 的 `number` 类型属性，那么在 `computed` 和 `method` 中，我们希望推导出的 `this.count` 依然也是 `number` 类型。
 
-もちろん、data だけではなく computed や methods に定義されたものについても同様です。
+
+当然，这不仅适用于 `data`，也适用于 `computed` 和 `methods` 中定义的内容。
 
 ```ts
 const App = defineComponent({
@@ -126,14 +129,15 @@ const App = defineComponent({
 })
 ```
 
-これを実現するには少々複雑な型パズルを実装する必要があります。(たくさんジェネリクスでバケツリレーします。)
+这会涉及一些复杂的类型推断的实现（我们会使用泛型进行多次类型传递）。
 
-defineComponent に対する型付を起点に、ComponentOptions, ComponentPublicInstance にリレーするためにいくつかの型を実装します。
+我们将从为 `defineComponent` 添加类型开始，然后实现一些类型以传递到 `ComponentOptions` 和 `ComponentPublicInstance` 中。
 
-ここでは一旦、data オプションと methods に絞って説明します。
+在这里，我们将优先实现 `data` 和 `methods` 两个选项的类型处理。
 
-まずはいつもの ComponentOptions という型です。
-こちらもジェネリックに拡張し、data と methods の型を受け取れるように D と M というパラメータを取るようにします。
+首先，我们有常规的 `ComponentOptions` 类型。
+
+现在我们将扩展这个类型，并使用泛型参数 `D` 和 `M` 来接收 `data` 和 `methods` 的类型。
 
 ```ts
 export type ComponentOptions<
@@ -149,8 +153,9 @@ interface MethodOptions {
 }
 ```
 
-ここまでは特に難しくないかと思います。これが defineComponent の引数に当てられる型です。  
-もちろん、defineComponent の方でも D と M を受け取れるようにします。これによってユーザーが定義した型をリレーしていけるようになります。
+这一点并不困难，就是定义传递给 `defineComponent` 的参数类型。
+
+当然，在 `defineComponent` 方法中也会接受 `D` 和 `M`，这样就可以传递用户定义的数据类型了。
 
 ```ts
 export function defineComponent<
@@ -159,16 +164,18 @@ export function defineComponent<
 >(options: ComponentOptions<D, M>) {}
 ```
 
-問題は method で扱う this に対して D をどうやって mix するか(どうやって this.count のような推論を可能にするか)です。
+问题是如何将 `D` 与 `methods` 中的 `this` 混合（即我们该如何实现 `this.count` 这类数据的类型推理）。
 
-まず、手始めに D や M は ComponentPublicInstance にマージされる(proxy にマージされる)ので以下のようになることがわかるかと思います。(ジェネリックに拡張します。)
+首先，`D` 和 `M` 会被合并到 `PendentPublicInstance` 中（合并到代理中）。
+
+我们可以这么理解（使用泛型进行扩展）：
 
 ```ts
 type ComponentPublicInstance<
   D = {},
   M extends MethodOptions = MethodOptions,
 > = {
-  /** public instance が持ついろんな型 */
+  /** public instance 原本拥有的各种数据类型 */
 } & D &
   M
 ```
@@ -182,11 +189,12 @@ type ComponentOptions<D = {}, M extends MethodOptions = MethodOptions> = {
 } & ThisType<ComponentPublicInstance<D, M>>
 ```
 
-こうしておくことで、option 中の this から data や method に定義したプロパティを推論することができます。
+这样，我们可以从 `option` 中的 `this` 推论出 `data` 和 `method` 中定义的属性与类型。
 
-実際には props であったり、computed, inject など様々な型を推論する必要がありますが、基本原理はこれと同じです。  
-ぱっと見ジェネリクスがたくさんあったり、型の変換(inject から key だけを取り出したり)が混ざっているのでウッとなってしまうかもしれませんが落ち着いて原理に戻って実装すれば大丈夫なはずです。  
-本書のコードでは本家の Vue をインスパイアして、`CreateComponentPublicInstance`という抽象化を一段階挟んでいたり、`ComponentPublicInstanceConstructor`と言う型を実装していますが、あまり気にしないでください。(興味があればそこも読んでみてください！　)
+在后面的实现中，我们还需要实现 `props`、`computed` 和 `inject` 的类型推断，但是原理都是差不多的。
 
-当前源代码位于:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/070_options_api)
+乍一看，你可能会因为有许多泛型和类型转换（例如从 `inject` 中提取出 `key`）而感到困惑，但只要冷静下来，回归到基础原理然后实现，应该就没问题了。
+
+在本书的代码中，受到 Vue.js 源代码的启发，我们引入了一个抽象层 `CreateComponentPublicInstance`，并实现了一个名为 `ComponentPublicInstanceConstructor` 的类型，但请不必太在意这些细节。（如果感兴趣的话，也可以看看那部分内容！）
+
+当前源代码位于: [chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/40_basic_component_system/070_options_api)
