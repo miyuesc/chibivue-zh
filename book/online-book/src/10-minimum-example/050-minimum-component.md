@@ -107,8 +107,6 @@ export interface VNode<HostNode = any> {
 }
 ```
 
-それに伴って、renderer の方でもコンポーネントを扱う必要が出てくるのですが、Element や Text と同様 processComponent を実装して、mountComponent と patchComponent (updateComponent) も実装していきましょう。
-
 除此之外，renderer 渲染器部分也需要增加组件的处理。
 
 所以我们还需要像实现 Element 和 Text 一样来实现 `processComponent` 方法，以及 `mountComponent` 和 `patchComponent`（`updateComponent`）两个具体的处理函数。
@@ -274,7 +272,7 @@ parentNode: (node) => {
 },
 ```
 
-上面的内容可能有点儿长，但是我决定并不是特别难。
+上面的内容可能有点儿长，但是我认为并不是特别难。
 
 并且由于我们在 `setupRenderEffect` 函数中已经实现了一个 `update` 函数来作为组件实例的更新方法，所以我们只需要在 `updateComponent` 中调用这个方法就行了。
 
@@ -294,9 +292,6 @@ const render: RootRenderFunction = (rootComponent, container) => {
   patch(null, vnode, container)
 }
 ```
-
-これで Component をレンダリングすることができました。試しに playground コンポーネントを作ってみてみましょう。  
-このように、コンポーネントに分割してレンダリングができるようになっているかと思います。
 
 现在我们已经可以渲染组件了。让我们在 playground 尝试创建一个组件来测试一下。
 
