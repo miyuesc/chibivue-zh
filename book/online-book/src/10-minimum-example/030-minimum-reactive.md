@@ -239,7 +239,7 @@ class ReactiveEffect {
 }
 ```
 
-TargetMap 的基本结构大概就是这个样子了。现在我们需要考虑的时候怎么创建这个 TargetMap（怎么注册）以及怎么去执行操作函数。
+TargetMap 的基本结构大概就是这个样子了。现在我们需要考虑的是怎么创建这个 TargetMap（怎么注册）以及怎么去执行操作函数。
 
 这里就需要提出 `track` 和 `trigger` 两个概念了。
 
@@ -294,7 +294,7 @@ function reactive<T>(target: T) {
 
 ![reactive](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/reactive.drawio.png)
 
-当然，通过这个图我们会注意到目前我们还查了一个元素。
+当然，通过这个图我们会注意到目前我们还差了一个元素。
 也就是说“在 `track` 过程中我们应该向 `targetMap` 中注册哪个操作函数？”。
 答案就是 `activeEffect`。
 `activeEffect` 与 `targetMap` 一样，都是一个模块中的全局变量，基于类型 `ReactiveEffect`，由 `run` 方法随时控制当前执行的 `activeEffect` 具体内容。
