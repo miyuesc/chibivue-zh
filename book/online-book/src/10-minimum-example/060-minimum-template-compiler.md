@@ -128,7 +128,7 @@ const app = createApp({ template: `<p class="hello">Hello World</p>` })
 
 因此我们也要考虑开发者的感受，只开发关于界面的部分。
 
-对此，Vue.js 的目标就是“像写原生的 HTML 一样，并且可以灵活使用用 Vue 提供的功能 (指令等) 更方便地编写 View 视图”。
+对此，Vue.js 的目标就是“像写原生的 HTML 一样，并且可以灵活使用 Vue 提供的功能 (指令等) 更方便地编写 View 视图”。
 并且，最终的目标就是实现 SFC。
 
 虽然，现在随着 jsx/tsx 的流行，Vue 也提供了类似的开发者选项。
