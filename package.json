@@ -30,16 +30,6 @@
     }
   },
   "lint-staged": {
-    "*.{js,json}": [
-      "prettier --write"
-    ],
-    "*.ts": [
-      "eslint --fix",
-      "prettier --parser=typescript --write"
-    ],
-    "*.md": [
-      "textlint"
-    ]
   },
   "author": "Ubugeeei <ubuge1122@gmail.com>",
   "devDependencies": {

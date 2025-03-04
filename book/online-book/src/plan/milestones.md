@@ -1,14 +1,14 @@
-# ★ Basic Virtual DOM 部門
+# ★ Basic Virtual DOM 部分
 
 - patch keyed children ✅
   - LIS
 - bit flag✅
 - scheduler ✅
   -> 5/28
-- props
-  NOTE: innerHTML / textContent については再考
+- props   
+  NOTE: 重新思考 innerHTML / textContent
 
-# ★ Basic Reactivity System 部門
+# ★ Basic Reactivity System 部分
 
 - ref api ✅
   -> 6/3
@@ -21,7 +21,7 @@
 - custom ref ✅
 - effect scope ✅
 
-# ★ Basic Component System 部門
+# ★ Basic Component System 部分
 
 - lifecycle hooks ✅
 - provide/inject ✅
@@ -31,7 +31,7 @@
   - named ✅
 - options api ✅
 
-# ★ Basic Template Compiler 部門
+# ★ Basic Template Compiler 部分
 
 - render component
   - slot
@@ -50,7 +50,7 @@
   - v-memo
   - v-cloak
 
-# ★ Basic SFC Compiler 部門
+# ★ Basic SFC Compiler 部分
 
 - script setup
 - compiler macro
@@ -60,7 +60,7 @@
   - defineSlots
   - defineOptions
 
-# ★ Web Application Essentials 部門 (付録)
+# ★ Web Application Essentials 部分 (付録)
 
 - error handling
 - keep-alive
