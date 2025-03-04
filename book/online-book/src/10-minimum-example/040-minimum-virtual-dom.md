@@ -298,7 +298,7 @@ const mountElement = (vnode: VNode, container: RendererElement) => {
   const { type, props } = vnode
   el = vnode.el = hostCreateElement(type as string)
 
-  mountChildren(vnode.children, el) // TODO:
+  mountChildren(vnode.children as VNode[], el) // TODO:
 
   if (props) {
     for (const key in props) {

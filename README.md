@@ -1,7 +1,7 @@
 > **Fork `chibivue` from [ubugeeei/chibivue](https://github.com/Ubugeeei/chibivue)**
 
 <p align="center">
-  <img src="./chibivue-img.png" width="600">
+  <img src="./book/images/logo/chibivue-img.png" width="600">
 </p>
 
 <div align="center">
