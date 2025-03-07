@@ -13,7 +13,7 @@ hero:
       link: /00-introduction/010-about
     - theme: alt
       text: 日文源站
-      link: https://ubugeeei.github.io/chibivue/
+      link: https://book.chibivue.land/
     - theme: alt
       text: Vue.js 官方网站
       link: https://v3.vuejs.org/

@@ -27,12 +27,12 @@ export default (process.env.NODE_ENV === 'production'
     ja: {
       label: 'Japanese',
       lang: 'ja',
-      link: 'https://ubugeeei.github.io/chibivue',
+      link: 'https://book.chibivue.land/ja/',
     },
     en: {
       label: 'English',
       lang: 'en',
-      link: 'https://ubugeeei.github.io/chibivue/en',
+      link: 'https://book.chibivue.land/',
     },
   },
 })

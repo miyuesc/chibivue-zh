@@ -16,7 +16,7 @@ export const sharedConfig = defineConfig({
       'meta',
       {
         property: 'source_og:url',
-        content: 'https://ubugeeei.github.io/chibivue',
+        content: 'https://book.chibivue.land/',
       },
     ],
     ['meta', { property: 'source_og:title', content: 'chibivue' }],
@@ -70,7 +70,7 @@ export const sharedConfig = defineConfig({
 </svg>`,
         },
         ariaLabel: 'Star this repo',
-        link: 'https://github.com/Ubugeeei/chibivue',
+        link: 'https://github.com/chibivue-land/chibivue',
       },
       { icon: 'github', link: 'https://github.com/miyuesc/chibivue-zh' },
       { icon: 'discord', link: 'https://discord.gg/aVHvmbmSRy' },
@@ -82,7 +82,7 @@ export const sharedConfig = defineConfig({
     },
     footer: {
       copyright: `Copyright © 2023-${new Date().getFullYear()} miyuesc`,
-      message: 'Released under the MIT License. Source is ubugeeei/chibivue',
+      message: 'Released under the MIT License. Source is chibivue-land/chibivue',
     },
   },
 })
