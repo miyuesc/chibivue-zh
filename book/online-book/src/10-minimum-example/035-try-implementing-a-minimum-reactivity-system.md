@@ -7,7 +7,7 @@
 这个实现是在 [Refactor reactivity system to use version counting and doubly-linked list tracking](https://github.com/vuejs/core/pull/10397) 中完成的，对性能提升有很大贡献。
 
 然而，对于第一次实现响应式系统的人来说，这可能有点难度，所以在本章中，我们将实现一个更简化的传统版本（改进前的版本）。\
-更接近当前实现的版本将在 [响应式系统的优化](/zh/30-basic-reactivity-system/005-reactivity-optimization) 中解释。
+更接近当前实现的版本将在 [响应式系统的优化](/30-basic-reactivity-system/005-reactivity-optimization) 中解释。
 
 另外，还有一个重要的改进 [feat(reactivity): more efficient reactivity system](https://github.com/vuejs/core/pull/5912)，这个我们也会在另一章节中解释。
 :::
