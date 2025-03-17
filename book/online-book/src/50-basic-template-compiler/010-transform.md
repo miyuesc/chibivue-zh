@@ -1,6 +1,6 @@
-# Transformer の実装 と Codegen のリファクタ(Basic Template Compiler 部門スタート)
+# Transformer 的实现和 Codegen 的重构(Basic Template Compiler 基础模板编译器章节开始啦)
 
-## 既存実装のおさらい
+## 回顾原有实现
 
 さて、ここからはテンプレートのコンパイラをより本格的に実装していきます。  
 Minimum Example 部門でやったところから少し時間が空いてしまったので、今の実装がどうなっていたか少しおさらいをしておきましょう。  

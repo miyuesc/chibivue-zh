@@ -5,8 +5,6 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
     nav: [
       { text: '主页', link: '/' },
       { text: '开始学习', link: '/00-introduction/010-about' },
-      { text: '翻译计划', link: '/plan/milestones' },
-      { text: '翻译进度：第五章第三节', link: '' },
     ],
     sidebar: [
       {
@@ -19,7 +17,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
             link: '/00-introduction/020-what-is-vue',
           },
           {
-            text: 'Vue.js 的关键组成部分',
+            text: 'Vue.js 的核心组成部分',
             link: '/00-introduction/030-vue-core-components',
           },
           {
@@ -37,27 +35,51 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
             link: '/10-minimum-example/010-create-app-api',
           },
           {
+            text: '包的设计',
+            link: '/10-minimum-example/015-package-architecture',
+          },
+          {
             text: '实现 HTML 元素的渲染',
             link: '/10-minimum-example/020-simple-h-function',
           },
           {
-            text: '一个轻量的响应式系统',
-            link: '/10-minimum-example/030-minimum-reactive',
+            text: '实现事件处理和属性绑定',
+            link: '/10-minimum-example/025-event-handler-and-attrs',
           },
           {
-            text: '简化的虚拟 DOM',
+            text: '响应式系统的预备知识',
+            link: '/10-minimum-example/030-prerequisite-knowledge-for-the-reactivity-system',
+          },
+          {
+            text: '实现简易响应式系统',
+            link: '/10-minimum-example/035-try-implementing-a-minimum-reactivity-system',
+          },
+          {
+            text: '实现简易虚拟 DOM',
             link: '/10-minimum-example/040-minimum-virtual-dom',
           },
           {
-            text: '如何面向组件化开发',
+            text: '组件化开发',
             link: '/10-minimum-example/050-minimum-component',
           },
           {
-            text: '简易的模板编译器',
-            link: '/10-minimum-example/060-minimum-template-compiler',
+            text: 'Props 的实现',
+            link: '/10-minimum-example/051-component-props',
           },
           {
-            text: '如何处理更加复杂的 HTML 模板',
+            text: 'Emit 的实现',
+            link: '/10-minimum-example/052-component-emits',
+          },
+          {
+            text: '理解模板编译器',
+            link: '/10-minimum-example/060-template-compiler',
+          },
+          {
+            text: '实现模板编译器',
+            link: '/10-minimum-example/061-template-compiler-impl',
+          },
+          {
+            text: '更复杂的 HTML 解析',
             link: '/10-minimum-example/070-more-complex-parser',
           },
           {
@@ -65,11 +87,27 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
             link: '/10-minimum-example/080-template-binding',
           },
           {
-            text: '希望用 SFC(单文件组件) 开发',
-            link: '/10-minimum-example/090-minimum-sfc',
+            text: 'SFC 开发（预备知识）',
+            link: '/10-minimum-example/090-prerequisite-knowledge-for-the-sfc',
           },
           {
-            text: '小节',
+            text: 'SFC 的解析',
+            link: '/10-minimum-example/091-parse-sfc',
+          },
+          {
+            text: 'SFC 的 template 块',
+            link: '/10-minimum-example/092-compile-sfc-template',
+          },
+          {
+            text: 'SFC 的 script 块',
+            link: '/10-minimum-example/093-compile-sfc-script',
+          },
+          {
+            text: 'SFC 的 style 块',
+            link: '/10-minimum-example/094-compile-sfc-style',
+          },
+          {
+            text: '稍作休息',
             link: '/10-minimum-example/100-break',
           },
         ],
@@ -101,6 +139,10 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
         collapsed: false,
         items: [
           {
+            text: '🚧 响应式系统的优化',
+            link: '/30-basic-reactivity-system/005-reactivity-optimization.md',
+          },
+          {
             text: 'ref API',
             link: '/30-basic-reactivity-system/010-ref-api',
           },
@@ -113,7 +155,7 @@ export const zhCnConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
             link: '/30-basic-reactivity-system/030-reactive-proxy-handlers',
           },
           {
-            text: 'Effect 副作用清理和作用域',
+            text: 'Effect 副作用清理和 Effect Scope',
             link: '/30-basic-reactivity-system/040-effect-scope',
           },
           {
