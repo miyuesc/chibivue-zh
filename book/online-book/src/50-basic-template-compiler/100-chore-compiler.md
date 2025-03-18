@@ -1,6 +1,6 @@
-# 細かいところ
+# 细节工作
 
 TODO:
 
-- remove dead white space
-- code style
+- 移除无用的空白
+- 代码风格 

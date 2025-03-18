@@ -1,25 +1,25 @@
 # Hyper Ultimate Super Extreme Minimal Vue
 
-## プロジェクトのセットアップ (0.5 min)
+## 项目设置 (0.5 分钟)
 
 ```sh
-# 本リポジトリをクローンして移動しましょう。
-git clone https://github.com/Ubugeeei/chibivue
+# 克隆本仓库并进入
+git clone https://github.com/chibivue-land/chibivue
 cd chibivue
 
-# setup コマンドでプロジェクトを作成します。
-# 引数にはプロジェクトのルートパスを指定します。
+# 使用 setup 命令创建项目
+# 参数指定项目的根路径
 nr setup ../my-chibivue-project
 ```
 
-これでプロジェクトの設定はおしまいです。
+项目设置到此结束。
 
-ここからは packages/index.ts を実装していきましょう。
+接下来让我们实现 packages/index.ts。
 
-## createApp (1 min)
+## createApp (1 分钟)
 
-create app には setup 関数と render 関数を指定できるようなシグネチャを考えます。
-ユーザーからすると、
+我们考虑一个可以指定 setup 函数和 render 函数的 create app 签名。
+从用户的角度来看，使用方式如下：
 
 ```ts
 const app = createApp({
@@ -34,9 +34,7 @@ const app = createApp({
 app.mount('#app')
 ```
 
-のように使うイメージですね。
-
-実装していきます。
+让我们开始实现：
 
 ```ts
 type CreateAppOption = {
@@ -45,7 +43,7 @@ type CreateAppOption = {
 }
 ```
 
-これを受け取って、とりあえず mount 関数を実装したオブジェクトを return するようなものにすれば OK です。
+接收这个选项，然后返回一个实现了 mount 函数的对象就可以了。
 
 ```ts
 export const createApp = (option: CreateAppOption) => ({
@@ -56,15 +54,15 @@ export const createApp = (option: CreateAppOption) => ({
 })
 ```
 
-はい。これでおしまいです。
+好了，这部分完成了。
 
-## h 関数と仮想 DOM (0.5 min)
+## h 函数和虚拟 DOM (0.5 分钟)
 
-patch レンダリングを行いたいですが、そのためには仮想 DOM とそれを生成するための関数が必要です。
+我们想要进行 patch 渲染，但为此需要虚拟 DOM 和用于生成它的函数。
 
-仮想 DOM というのは タグ名や属性、子要素などの情報を JS のオブジェクトで表現したもので、  
-Vue の renderer は基本的にはこの仮想 DOM を扱いながら実 DOM への反映を行っていきます。
-今回は名前と click イベントのハンドラと 子要素( text )を扱うような VNode を考えてみます。
+虚拟 DOM 是用 JS 对象表示标签名、属性、子元素等信息的数据结构，
+Vue 的渲染器基本上是通过处理这个虚拟 DOM 来更新实际的 DOM。
+这次我们考虑实现一个包含名称、click 事件处理器和子元素（文本）的 VNode。
 
 ```ts
 type VNode = { tag: string; onClick: (e: Event) => void; children: string }
@@ -75,17 +73,17 @@ export const h = (
 ): VNode => ({ tag, onClick, children })
 ```
 
-はい。お終いです。
+好了，这部分完成了。
 
-## patch rendering (2 min)
+## patch rendering (2 分钟)
 
-それでは renderer を実装していきます。
+现在让我们实现渲染器。
 
-このレンダリング処理はたちまち patch 処理と呼ばれたりしますが、 patch という名の通り、
+这个渲染过程也被称为 patch 处理，顾名思义，
 
-新旧の仮想 DOM を比較して差分を実 DOM に反映します。
+它通过比较新旧虚拟 DOM 来将差异更新到实际 DOM。
 
-つまり、関数のシグネチャ的には
+也就是说，函数签名应该是这样的：
 
 ```ts
 export const render = (n1: VNode | null, n2: VNode, container: Element) => {
@@ -93,19 +91,18 @@ export const render = (n1: VNode | null, n2: VNode, container: Element) => {
 }
 ```
 
-のようになります。  
-n1 が古い VNode, n2 が新しい VNode, container というのは実 DOM の root です。  
-今回の例で言うと `#app` が container になります。(createApp で mount した要素)
+这里 n1 是旧的 VNode，n2 是新的 VNode，container 是实际 DOM 的根元素。
+在我们的例子中，`#app` 就是 container（在 createApp 中 mount 的元素）。
 
-中身の実装について、考慮するべきは 2 種類の処理です。
+实现中需要考虑两种处理：
 
 - mount  
-  初回です。 n1 が null の場合に初回レンダリングという判断を行ってマウント処理を書きます。
+  首次渲染。当 n1 为 null 时判断为首次渲染，执行挂载处理。
 - patch  
-  VNode 同士で比較して差分を実 DOM に反映します。  
-  とはいっても、今回は children を更新するだけで、差分の検知は行いません。
+  比较 VNode 之间的差异并更新到实际 DOM。
+  不过，这次我们只更新 children，不进行差异检测。
 
-それでは実装してみます。
+让我们来实现：
 
 ```ts
 export const render = (n1: VNode | null, n2: VNode, container: Element) => {
@@ -122,15 +119,15 @@ export const render = (n1: VNode | null, n2: VNode, container: Element) => {
 }
 ```
 
-以上になります。
+以上就是全部内容。
 
-## Reactivity System (2 min)
+## Reactivity System (2 分钟)
 
-これからは実際に setup オプションでセットアップされたステートの変更を追跡して、
+接下来我们要实现追踪 setup 选项中设置的状态变化，
 
-render 関数を発火させる処理を実装していきます。ステートの更新を追跡して特定の作用を実行することから「Reactivity System」というふうな名前がついています。
+并触发 render 函数的处理。由于它追踪状态更新并执行特定作用，所以被称为"Reactivity System"。
 
-今回は `reactive` という関数でユーザーにステートを定義することを考えてみます。
+这次我们考虑让用户使用 `reactive` 函数来定义状态。
 
 ```ts
 const app = createApp({
@@ -144,11 +141,11 @@ const app = createApp({
 })
 ```
 
-このようなイメージです。
-実際に、この reactive 関数で定義されたステートが変更された際に patch 処理を実行したいです。
+就是这样的感觉。
+实际上，我们希望在通过 reactive 函数定义的状态发生变化时执行 patch 处理。
 
-これは Proxy というオブジェクトを用いて実現されます。
-Proxy は get / set に対して機能を実装することができます。今回はこの set に対する拡張を利用して、 set 時に patch 処理を実行するように実装してみます。
+这是通过 Proxy 对象来实现的。
+Proxy 可以实现对 get/set 的功能扩展。这次我们利用对 set 的扩展，在 set 时执行 patch 处理。
 
 ```ts
 export const reactive = <T extends Record<string, unknown>>(obj: T): T =>
@@ -156,26 +153,26 @@ export const reactive = <T extends Record<string, unknown>>(obj: T): T =>
     get: (target, key, receiver) => Reflect.get(target, key, receiver),
     set: (target, key, value, receiver) => {
       const res = Reflect.set(target, key, value, receiver)
-      // ??? ここで patch 処理を実行したい
+      // ??? 这里想要执行 patch 处理
       return res
     },
   })
 ```
 
-問題としては、set で何を発火するかです。
-本来は get によって作用を track したりしなければならないのですが、今回はグローバルなスコープに update 関数を定義してそれを参照します。
+问题是在 set 中要触发什么。
+本来应该通过 get 来追踪作用，但这次我们在全局作用域中定义 update 函数并引用它。
 
-先ほど実装した render 関数を使って update 関数を実装してみます。
+让我们使用之前实现的 render 函数来实现 update 函数。
 
 ```ts
-let update: (() => void) | null = null // Proxy で参照したいのでグローバルに
+let update: (() => void) | null = null // 为了在 Proxy 中引用而设置为全局
 export const createApp = (option: CreateAppOption) => ({
   mount(selector: string) {
     const container = document.querySelector(selector)!
     let prevVNode: VNode | null = null
-    const setupState = option.setup() // 初回のみ setup
+    const setupState = option.setup() // 只在初始化时执行 setup
     update = () => {
-      // prevVNode と VNode を比較できるようにいい感じにクロージャを生成している。
+      // 通过闭包来实现 prevVNode 和 VNode 的比较
       const vnode = option.render(setupState)
       render(prevVNode, vnode, container)
       prevVNode = vnode
@@ -185,7 +182,7 @@ export const createApp = (option: CreateAppOption) => ({
 })
 ```
 
-はい。あとは Proxy の set で呼んであげましょう。
+好的。现在在 Proxy 的 set 中调用它：
 
 ```ts
 export const reactive = <T extends Record<string, unknown>>(obj: T): T =>
@@ -193,41 +190,41 @@ export const reactive = <T extends Record<string, unknown>>(obj: T): T =>
     get: (target, key, receiver) => Reflect.get(target, key, receiver),
     set: (target, key, value, receiver) => {
       const res = Reflect.set(target, key, value, receiver)
-      update?.() // 実行
+      update?.() // 执行
       return res
     },
   })
 ```
 
-## template compiler (5 min)
+## template compiler (5 分钟)
 
-ここまでで、ユーザーに render オプションと h 関数を使わせて 宣言的な UI を実装できるようにはなったのですが、
-実際には HTML ライクに記述したいです。
+到目前为止，我们已经让用户可以通过 render 选项和 h 函数来实现声明式 UI，
+但实际上我们希望能够使用类似 HTML 的方式来编写。
 
-そこで、HTML から h 関数に変換するような template compiler を実装してみます。
+因此，让我们实现一个将 HTML 转换为 h 函数的模板编译器。
 
-目標的には、
+目标是将：
 
 ```
 <button @click="increment">state: {{ state.count }}</button>
 ```
 
-のような文字列を、
+这样的字符串转换为：
 
 ```
 h("button", increment, "state: " + state.count)
 ```
 
-のような関数に変換したいです。
+这样的函数。
 
-少し段階分けをします。
+让我们分几个步骤：
 
 - parse  
-  HTML の文字列を解析し、AST と呼ばれるオブジェクトに変換します。
+  解析 HTML 字符串，转换为称为 AST 的对象。
 - codegen  
-  AST を元に目標のコード (文字列) を生成します。
+  基于 AST 生成目标代码（字符串）。
 
-それでは、AST と parse を実装してみます。
+首先，让我们实现 AST 和 parse：
 
 ```ts
 type AST = {
@@ -238,236 +235,151 @@ type AST = {
 type Interpolation = { content: string }
 ```
 
-今回扱う AST は上記の通りです。 VNode と似ていますが全くの別物で、これはコードを生成するためのものです。
-Interpolation というのがマスタッシュ構文です。 <span v-pre>`{{ state.count }}`</span> のような文字列は、 <span v-pre>`{ content: "state.count" }`</span> というオブジェクト(AST)に解析されます。
+这就是我们要处理的 AST。虽然看起来和 VNode 很像，但它们是完全不同的东西，这个是用来生成代码的。
+Interpolation 是指胡子语法。<span v-pre>`{{ state.count }}`</span> 这样的字符串会被解析为 <span v-pre>`{ content: "state.count" }`</span> 这样的对象（AST）。
 
-あとは与えられた文字列から AST を生成する parse 関数を実装してしまえば OK です。
-こちらは取り急ぎ、正規表現といくつかの文字列操作で実装してみます。
+接下来只需要实现将给定字符串转换为 AST 的 parse 函数就可以了。
+这里我们暂时使用正则表达式和一些字符串操作来实现：
 
 ```ts
 const parse = (template: string): AST => {
   const RE = /<([a-z]+)\s@click=\"([a-z]+)\">(.+)<\/[a-z]+>/
   const [_, tag, onClick, children] = template.match(RE) || []
-  if (!tag || !onClick || !children) throw new Error('Invalid template!')
-  const regex = /{{(.*?)}}/g
-  let match: RegExpExecArray | null
-  let lastIndex = 0
-  const parsedChildren: AST['children'] = []
-  while ((match = regex.exec(children)) !== null) {
-    lastIndex !== match.index &&
-      parsedChildren.push(children.substring(lastIndex, match.index))
-    parsedChildren.push({ content: match[1].trim() })
-    lastIndex = match.index + match[0].length
+
+  const parseChildren = (children: string) => {
+    const RE = /(.+){{(.+)}}/
+    const matched = children.match(RE)
+    if (!matched) return [children]
+    const [_, text, exp] = matched
+    return [text, { content: exp.trim() }]
   }
-  lastIndex < children.length && parsedChildren.push(children.substr(lastIndex))
-  return { tag, onClick, children: parsedChildren }
+
+  return {
+    tag: tag!,
+    onClick: onClick!,
+    children: parseChildren(children!),
+  }
 }
 ```
 
-次に codegen です。 AST を元に h 関数の呼び出しを生成します。
+接下来是 codegen。
+我们需要实现一个从 AST 生成 h 函数的函数。
 
 ```ts
-const codegen = (node: AST) =>
-  `(_ctx) => h('${node.tag}', _ctx.${node.onClick}, \`${node.children
-    .map(child =>
-      typeof child === 'object' ? `\$\{_ctx.${child.content}\}` : child,
+const codegen = (ast: AST): string => {
+  const children = ast.children
+    .map((child) =>
+      typeof child === 'string' ? `"${child}"` : child.content,
     )
-    .join('')}\`)`
-```
-
-state には \_ctx という引数から参照するようにしています。
-
-これらを組み合わせれば compile 関数の完成です。
-
-```ts
-const compile = (template: string): string => codegen(parse(template))
-```
-
-まあ、実はこのままではただ h 関数の呼び出しを文字列として生成するだけなので、まだ動かないのですが、
-
-それは次の sfc compiler で一緒に実装してしまいます。
-
-これで template compiler は完成です。
-
-## sfc compiler (vite-plugin) (4 min)
-
-ラスト！ vite のプラグインを実装して sfc に対応していきます。
-
-vite のプラグインには、transform というオプションがあり、これを使うとファイルの内容を変換することができます。
-
-transform 関数は `{ code: string }` のようなものを return することで、その文字列がソースコードとして扱われます。
-つまり、例えば、
-
-```ts
-export const VitePluginChibivue = () => ({
-  name: "vite-plugin-chibivue",
-  transform: (code: string, id: string) => ({
-    code: "";
-  }),
-});
-```
-
-のようにすれば、全てのファイルの内容が空文字列になります。
-元々のコードは第一引数で受け取れるようになっているので、この値をうまく変換して最後に return すれば変換することができます。
-
-やることは、 5 つです。
-
-- script から default export されているものを抜き出す。
-- それを変数に入れるようなコードに変換する。(便宜上その変数名を A とします。)
-- template から HTML 文字列を抜き出して、さっき作った compile 関数で h 関数の呼び出しに変換する。 (便宜上その結果を B とします。)
-- `Object.assign(A, { render: B })` というようなコードを生成する。
-- A を default export するようなコードを生成する。
-
-それでは実装してみましょう。
-
-```ts
-const compileSFC = (sfc: string): { code: string } => {
-  const [_, scriptContent] =
-    sfc.match(/<script>\s*([\s\S]*?)\s*<\/script>/) ?? []
-  const [___, defaultExported] =
-    scriptContent.match(/export default\s*([\s\S]*)/) ?? []
-  const [__, templateContent] =
-    sfc.match(/<template>\s*([\s\S]*?)\s*<\/template>/) ?? []
-  if (!scriptContent || !defaultExported || !templateContent)
-    throw new Error('Invalid SFC!')
-  let code = ''
-  code +=
-    "import { h, reactive } from 'hyper-ultimate-super-extreme-minimal-vue';\n"
-  code += `const options = ${defaultExported}\n`
-  code += `Object.assign(options, { render: ${compile(templateContent)} });\n`
-  code += 'export default options;\n'
-  return { code }
+    .join(' + ')
+  return `h("${ast.tag}", ${ast.onClick}, ${children})`
 }
 ```
 
-あとはこれを Plugin に実装してあげれば Ok です。
+好了，template compiler 的实现到此完成。
 
-```ts
-export const VitePluginChibivue = () => ({
-  name: 'vite-plugin-chibivue',
-  transform: (code: string, id: string) =>
-    id.endsWith('.vue') ? compileSFC(code) : code, // 拡張子が .vue の場合のみ
-})
-```
+## SFC compiler (4 分钟)
 
-## おしまい
+最后我们来实现 SFC。
 
-はい。なんとこれで SFC まで実装することができました。
-改めてソースコードを眺めてみましょう。
+SFC 是 Single File Component（单文件组件）的缩写，是 Vue 的一个特色功能。
 
-```ts
-// create app api
-type CreateAppOption = {
-  setup: () => Record<string, unknown>
-  render: (ctx: Record<string, unknown>) => VNode
-}
-let update: (() => void) | null = null
-export const createApp = (option: CreateAppOption) => ({
-  mount(selector: string) {
-    const container = document.querySelector(selector)!
-    let prevVNode: VNode | null = null
-    const setupState = option.setup()
-    update = () => {
-      const vnode = option.render(setupState)
-      render(prevVNode, vnode, container)
-      prevVNode = vnode
-    }
-    update()
+```vue
+<script>
+import { reactive } from 'hyper-ultimate-super-extreme-minimal-vue'
+
+export default {
+  setup() {
+    const state = reactive({ count: 0 })
+    const increment = () => state.count++
+    return { state, increment }
   },
-})
-
-// Virtual DOM patch
-export const render = (n1: VNode | null, n2: VNode, container: Element) => {
-  const mountElement = (vnode: VNode, container: Element) => {
-    const el = document.createElement(vnode.tag)
-    el.textContent = vnode.children
-    el.addEventListener('click', vnode.onClick)
-    container.appendChild(el)
-  }
-  const patchElement = (_n1: VNode, n2: VNode) => {
-    ;(container.firstElementChild as Element).textContent = n2.children
-  }
-  n1 == null ? mountElement(n2, container) : patchElement(n1, n2)
 }
+</script>
 
-// Virtual DOM
-type VNode = { tag: string; onClick: (e: Event) => void; children: string }
-export const h = (
-  tag: string,
-  onClick: (e: Event) => void,
-  children: string,
-): VNode => ({ tag, onClick, children })
+<template>
+  <button @click="increment">state: {{ state.count }}</button>
+</template>
+```
 
-// Reactivity System
-export const reactive = <T extends Record<string, unknown>>(obj: T): T =>
-  new Proxy(obj, {
-    get: (target, key, receiver) => Reflect.get(target, key, receiver),
-    set: (target, key, value, receiver) => {
-      const res = Reflect.set(target, key, value, receiver)
-      update?.()
-      return res
+如上所示，它允许我们在一个文件中同时编写 script 和 template。
+
+要实现这个功能，我们需要实现一个 vite 插件。
+
+```ts
+import type { Plugin } from 'vite'
+
+export const husemVue = (): Plugin => {
+  return {
+    name: 'vite:husem-vue',
+    transform: (code, id) => {
+      if (!id.endsWith('.vue')) return code
+      const RE = /<script>(.+)<\/script>.+<template>(.+)<\/template>/s
+      const [_, script, template] = code.match(RE) || []
+      const ast = parse(template!)
+      const render = codegen(ast)
+      return script!.replace(
+        'export default {',
+        `export default { render: (ctx) => ${render},`,
+      )
     },
-  })
-
-// template compiler
-type AST = {
-  tag: string
-  onClick: string
-  children: (string | Interpolation)[]
-}
-type Interpolation = { content: string }
-const parse = (template: string): AST => {
-  const RE = /<([a-z]+)\s@click=\"([a-z]+)\">(.+)<\/[a-z]+>/
-  const [_, tag, onClick, children] = template.match(RE) || []
-  if (!tag || !onClick || !children) throw new Error('Invalid template!')
-  const regex = /{{(.*?)}}/g
-  let match: RegExpExecArray | null
-  let lastIndex = 0
-  const parsedChildren: AST['children'] = []
-  while ((match = regex.exec(children)) !== null) {
-    lastIndex !== match.index &&
-      parsedChildren.push(children.substring(lastIndex, match.index))
-    parsedChildren.push({ content: match[1].trim() })
-    lastIndex = match.index + match[0].length
   }
-  lastIndex < children.length && parsedChildren.push(children.substr(lastIndex))
-  return { tag, onClick, children: parsedChildren }
-}
-const codegen = (node: AST) =>
-  `(_ctx) => h('${node.tag}', _ctx.${node.onClick}, \`${node.children
-    .map(child =>
-      typeof child === 'object' ? `\$\{_ctx.${child.content}\}` : child,
-    )
-    .join('')}\`)`
-const compile = (template: string): string => codegen(parse(template))
-
-// sfc compiler (vite transformer)
-export const VitePluginChibivue = () => ({
-  name: 'vite-plugin-chibivue',
-  transform: (code: string, id: string) =>
-    id.endsWith('.vue') ? compileSFC(code) : null,
-})
-const compileSFC = (sfc: string): { code: string } => {
-  const [_, scriptContent] =
-    sfc.match(/<script>\s*([\s\S]*?)\s*<\/script>/) ?? []
-  const [___, defaultExported] =
-    scriptContent.match(/export default\s*([\s\S]*)/) ?? []
-  const [__, templateContent] =
-    sfc.match(/<template>\s*([\s\S]*?)\s*<\/template>/) ?? []
-  if (!scriptContent || !defaultExported || !templateContent)
-    throw new Error('Invalid SFC!')
-  let code = ''
-  code +=
-    "import { h, reactive } from 'hyper-ultimate-super-extreme-minimal-vue';\n"
-  code += `const options = ${defaultExported}\n`
-  code += `Object.assign(options, { render: ${compile(templateContent)} });\n`
-  code += 'export default options;\n'
-  return { code }
 }
 ```
 
-なんと 110 行くらいで実装できてしまいました。(これで誰からも文句言われないでしょう。ふぅ...)
+这样就完成了。
 
-## ぜひ本編の本編の方もやってくださいね！！！！！！！！
+## 完成 (15 分钟)
 
-ぜひ本編の本編の方もやってくださいね！！！！！！！！ (これはあくまで付録ですから 😙)
+现在所有的实现都完成了。
+
+让我们来实际运行一下。
+
+```ts
+// packages/index.ts
+export { createApp } from './createApp'
+export { reactive } from './reactive'
+export { h } from './h'
+```
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import { husemVue } from './packages/plugin'
+
+export default defineConfig({
+  plugins: [husemVue()],
+})
+```
+
+```vue
+<!-- App.vue -->
+<script>
+import { reactive } from 'hyper-ultimate-super-extreme-minimal-vue'
+
+export default {
+  setup() {
+    const state = reactive({ count: 0 })
+    const increment = () => state.count++
+    return { state, increment }
+  },
+}
+</script>
+
+<template>
+  <button @click="increment">state: {{ state.count }}</button>
+</template>
+```
+
+```ts
+// main.ts
+import { createApp } from 'hyper-ultimate-super-extreme-minimal-vue'
+import App from './App.vue'
+
+const app = createApp(App)
+app.mount('#app')
+```
+
+<video src="https://github.com/ubugeeei/chibivue/assets/71201308/f0c0c0c4-c0c4-4c0c-a0c4-c0c0c0c4c0c4" controls />
+
+以上就是全部内容。

@@ -1,34 +1,32 @@
-# v-if と構造的ディレクティブ
+# v-if 和结构型指令
 
-さてここからはまたディレクティブの実装をやっていきましょう！
+现在让我们继续实现指令功能！
 
-ついに v-if を実装していきます。
+终于到了实现 v-if 的时候了。
 
-## v-if ディレクティブとこれまでのディレクティブの違い
+## v-if 指令与之前指令的区别
 
-これまでの v-bind や v-on などを実装してきました。
+我们已经实现了 v-bind 和 v-on 等指令。
 
-これから v-if を実装して行くのですが、v-if はこれらのディレクティブとは少し作りが違います。
+现在我们将实现 v-if，但 v-if 与这些指令的结构有所不同。
 
-以下は Vue.js の公式ドキュメントのコンパイル時最適化に関する項目の一説ですが、
+以下是 Vue.js 官方文档中关于编译时优化的一段描述：
 
 > In this case, the entire template has a single block because it does not contain any structural directives like v-if and v-for.
 
 https://vuejs.org/guide/extras/rendering-mechanism.html#tree-flattening
 
-という言葉が見受けられます。(Tree Flattening が何かについては別で解説するので気にしなくていいです。)
+从中可以看出，v-if 和 v-for 被称为 `structural directives`（结构型指令）。
 
-この通り、v-if や v-if は `structural directives` と呼ばれるもので、構造を伴うディレクティブです。
-
-angular のドキュメントだと項目として明記されていたりもします。
+Angular 的文档中也明确将其作为一个类别。
 
 https://angular.jp/guide/structural-directives
 
-v-if や v-for は単にその要素の属性(+イベントに対する振舞い)を変更するだけでなく、要素の存在を切り替えたり、リストの数に応じて 要素を生成・削除したりと、要素の構造を変更するディレクティブです。
+v-if 和 v-for 不仅仅是改变元素的属性（和事件行为），它们还会切换元素的存在、根据列表数量生成或删除元素，从而改变元素的结构。
 
-## 目指す開発者インターフェース
+## 目标开发者接口
 
-v-if / v-else-if / v-else を組み合わせて FizzBuzz が実装できるようなものを考えてみましょう。
+让我们考虑一个可以结合 v-if / v-else-if / v-else 实现 FizzBuzz 的示例。
 
 ```ts
 import { createApp, defineComponent, ref } from 'chibivue'
@@ -57,9 +55,9 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-今回はまず初めに、どういうコードを生成したいかについても考えてみようかと思います。
+首先，让我们思考一下我们想要生成什么样的代码。
 
-結論から言ってしまうと、v-if や v-else は以下のように条件式に変換されます。
+结论是，v-if 和 v-else 会被转换为以下条件表达式：
 
 ```ts
 function render(_ctx) {
@@ -90,50 +88,48 @@ function render(_ctx) {
 }
 ```
 
-これをみても分かる通り、これまで実装してきたものに条件を表す構造を持たせています。
+从中可以看出，我们需要在已有的实现基础上添加条件结构。
 
-このようなコードを生成するための AST に変形させる transformer を実装するには一工夫必要そうです。
+要实现将 AST 转换为这样的代码，需要一些巧妙的设计。
 
 ::: warning
 
-現時点での実装では空白などの読み飛ばしの実装を行っていないので実際には間に余計な文字 Node が入ってしまうかと思います。
+在当前实现中，由于我们还没有处理空白字符的跳过，实际上可能会在节点之间插入额外的文字节点。
 
-が、 v-if の実装上は特に問題ありませんので(後でわかります)、今回は無視してください。
+但这对 v-if 的实现不会造成问题（后面会解释），所以本章暂时忽略这个问题。
 
 :::
 
-## 構造的ディレクティブの実装
+## 结构型指令的实现
 
-### 構造にまつわるメソッドを実装する
+### 实现结构相关的方法
 
-v-if の実装を行っていく前に、少し準備です。
+在实现 v-if 之前，需要做一些准备工作。
 
-最初にも v-if や v-for という構造的ディレクティブは AST Node の構造を変更するディレクティブであるということを説明しました。
+正如开始所说，v-if 和 v-for 这类结构型指令会改变 AST 节点的结构。
 
-これらを実現するために、ベースとなる transformer にいくつかの実装を行います。
+为了实现这些功能，我们需要在基础 transformer 中添加一些实现。
 
-具体的には、TransformContext に以下の３つを実装します。
+具体来说，我们要在 TransformContext 中添加以下三个方法：
 
 ```ts
 export interface TransformContext extends Required<TransformOptions> {
   // .
   // .
   // .
-  replaceNode(node: TemplateChildNode): void // 追加
-  removeNode(node?: TemplateChildNode): void // 追加
-  onNodeRemoved(): void // 追加
+  replaceNode(node: TemplateChildNode): void // 新增
+  removeNode(node?: TemplateChildNode): void // 新增
+  onNodeRemoved(): void // 新增
 }
 ```
 
-traverseChildren の方で現在の parent と children の index は保持するようになっていると思うので、それらを使って 上記のメソッドを実装していきます。
+我们将使用 traverseChildren 中保存的当前 parent 和 children 索引来实现这些方法。
 
-<!-- NOTE: このチャプターまで実装しなくてもいいかもしれない -->
+<!-- NOTE: 这一章可能不需要实现 -->
 
-::: details 念の為
+::: details 补充说明
 
-この部分です。
-
-実装していると思いますが、これを実装したチャプターではあまり詳しく説明していなかったので念の為補足です。
+这部分代码应该已经实现了，但在之前的章节中没有详细解释，所以在这里补充说明。
 
 ```ts
 export function traverseChildren(
@@ -143,8 +139,8 @@ export function traverseChildren(
   for (let i = 0; i < parent.children.length; i++) {
     const child = parent.children[i]
     if (isString(child)) continue
-    context.parent = parent // これ
-    context.childIndex = i // これ
+    context.parent = parent // 这个
+    context.childIndex = i // 这个
     traverseNode(child, context)
   }
 }
@@ -162,12 +158,12 @@ export function createTransformContext(
     // .
     // .
 
-    // Node を受け取って currentNode と 該当の parent の children をその Node に置き換えます
+    // 接收一个 Node，替换 currentNode 和 parent 的 children 中对应的节点
     replaceNode(node) {
       context.parent!.children[context.childIndex] = context.currentNode = node
     },
 
-    // Node を受け取って currentNode と 該当の parent の children からその Node を削除します
+    // 接收一个 Node，从 parent 的 children 中删除该节点
     removeNode(node) {
       const list = context.parent!.children
       const removalIndex = node
@@ -176,11 +172,11 @@ export function createTransformContext(
           ? context.childIndex
           : -1
       if (!node || node === context.currentNode) {
-        // current node removed
+        // 当前节点被删除
         context.currentNode = null
         context.onNodeRemoved()
       } else {
-        // sibling node removed
+        // 兄弟节点被删除
         if (context.childIndex > removalIndex) {
           context.childIndex--
           context.onNodeRemoved()
@@ -189,7 +185,7 @@ export function createTransformContext(
       context.parent!.children.splice(removalIndex, 1)
     },
 
-    // こちらは replaceNode 等を実際に使用する際に登録するようにします
+    // 这个将在使用 replaceNode 等方法时注册
     onNodeRemoved: () => {},
   }
 
@@ -197,40 +193,40 @@ export function createTransformContext(
 }
 ```
 
-既存の実装も少し修正が必要です。transform 中に removeNode が呼ばれることを想定して、traverseChildren の方を調整してあげます。
+我们还需要修改一些现有实现。为了处理 transform 过程中 removeNode 的情况，我们需要调整 traverseChildren 方法。
 
-Node が削除されると index が変わってしまうので、Node が 削除された際に for の index を減らしてあげます。
+当节点被删除时，索引会发生变化，所以我们需要在节点被删除时减少 for 循环的索引。
 
 ```ts
 export function traverseChildren(
   parent: ParentNode,
   context: TransformContext,
 ) {
-  let i = 0 // これ
+  let i = 0 // 修改
   const nodeRemoved = () => {
-    i-- // これ
+    i-- // 新增
   }
   for (; i < parent.children.length; i++) {
     const child = parent.children[i]
     if (isString(child)) continue
     context.parent = parent
     context.childIndex = i
-    context.onNodeRemoved = nodeRemoved // これ
+    context.onNodeRemoved = nodeRemoved // 新增
     traverseNode(child, context)
   }
 }
 ```
 
-### createStructuralDirectiveTransform の実装
+### 实现 createStructuralDirectiveTransform
 
-v-if や v-for といったディレクティブを実装するにあたって、createStructuralDirectiveTransform というヘルパー関数を実装します。
+为了实现 v-if 和 v-for 这类指令，我们将创建一个 createStructuralDirectiveTransform 辅助函数。
 
-これらの transformer は NodeTypes.ELEMENT のみに作用し、その Node が持つ DirectiveNode に対して 各 transformer の実装を適用します。
+这些 transformer 只作用于 NodeTypes.ELEMENT，并对该节点所持有的 DirectiveNode 应用各自的 transformer 实现。
 
-まぁ、実装自体は大きなものではないので、実際に見てもらった方がわかりやすいと思います。以下のような感じです。
+实现本身并不复杂，看代码会更好理解：
 
 ```ts
-// 各 transformer (v-if/v-for など) はこの interface にそって実装されます。
+// 每个 transformer (v-if/v-for 等) 都会按照这个接口实现
 export type StructuralDirectiveTransform = (
   node: ElementNode,
   dir: DirectiveNode,
@@ -238,8 +234,8 @@ export type StructuralDirectiveTransform = (
 ) => void | (() => void)
 
 export function createStructuralDirectiveTransform(
-  // name は正規表現にも対応しています。
-  // v-if の transformer でいうと、 `/^(if|else|else-if)$/` のようなものを受け取れる想定です。
+  // name 也支持正则表达式
+  // 例如 v-if 的 transformer 可以接收 `/^(if|else|else-if)$/` 这样的参数
   name: string | RegExp,
   fn: StructuralDirectiveTransform,
 ): NodeTransform {
@@ -249,13 +245,13 @@ export function createStructuralDirectiveTransform(
 
   return (node, context) => {
     if (node.type === NodeTypes.ELEMENT) {
-      // NodeTypes.ELEMENT のみに作用
+      // 只作用于 NodeTypes.ELEMENT
       const { props } = node
       const exitFns = []
       for (let i = 0; i < props.length; i++) {
         const prop = props[i]
         if (prop.type === NodeTypes.DIRECTIVE && matches(prop.name)) {
-          // NodeTypes.DIRECTIVE かつ name が一致するものに対して transformer を実行
+          // 对类型为 NodeTypes.DIRECTIVE 且名称匹配的属性执行 transformer
           props.splice(i, 1)
           i--
           const onExit = fn(node, prop, context)
@@ -268,19 +264,19 @@ export function createStructuralDirectiveTransform(
 }
 ```
 
-## v-if を実装していく
+## 实现 v-if
 
-### AST の実装
+### AST 实现
 
-上記までで準備は終わりです。ここからは v-if の実装を行っていきます。
+前面的准备工作已经完成，现在开始实现 v-if。
 
-いつものように、AST の定義から行なって、パーサーを実装していきましょう。
+通常我们会从 AST 定义开始，然后实现解析器。
 
-と言いたいところでしたが、今回はパーサーは必要なさそうです。
+但在这个情况下，我们不需要特别的解析器。
 
-どちらかというと、今回は transform 後の AST をどういう形にしたいかを考えて、それに変形させるための transformer を実装していく感じになります。
+我们更关心的是：要将 AST 转换成什么样的形式，以及如何实现这个转换的 transformer。
 
-改めて、冒頭で想定していたコンパイル後のコードを見てみましょう。
+让我们再次看看前面设想的编译后代码：
 
 ```ts
 function render(_ctx) {
@@ -311,20 +307,20 @@ function render(_ctx) {
 }
 ```
 
-最終的には条件式(三項演算子)に変換されていることが分かります。
+最终会转换为条件表达式（三元运算符）。
 
-これまで条件式を扱ったことはないので、Codegen のために AST 側でこれを取り扱う必要があるようです。  
-基本的に考えたいものは 3 つの情報です。("三項"演算子なのでね)
+由于我们以前没有处理过条件表达式，需要在 AST 中添加相关定义。
+基本上我们需要考虑三个信息（因为是"三元"运算符）：
 
 - **条件**  
-  A ? B : C の A にあたる部分です。  
-  condition という名前で表現されます。
-- **条件にマッチした時の Node**  
-  A ? B : C の B にあたる部分です。  
-  consequent という名前で表現されます。
-- **条件にマッチしなかった時の Node**  
-  A ? B : C の C にあたる部分です。  
-  alternate という名前で表現されます。
+  A ? B : C 中的 A 部分。  
+  表示为 condition。
+- **条件匹配时的节点**  
+  A ? B : C 中的 B 部分。  
+  表示为 consequent。
+- **条件不匹配时的节点**  
+  A ? B : C 中的 C 部分。  
+  表示为 alternate。
 
 ```ts
 export const enum NodeTypes {
@@ -339,7 +335,7 @@ export interface ConditionalExpression extends Node {
   test: JSChildNode
   consequent: JSChildNode
   alternate: JSChildNode
-  newline: boolean // これは codegen のフォーマット用なのであまり気にしなくていいです
+  newline: boolean // 这个是用于 codegen 格式化的，不用太在意
 }
 
 export type JSChildNode =
@@ -347,7 +343,7 @@ export type JSChildNode =
   | CallExpression
   | ObjectExpression
   | ArrayExpression
-  | ConditionalExpression // 追加
+  | ConditionalExpression // 新增
   | ExpressionNode
 
 export function createConditionalExpression(
@@ -367,7 +363,7 @@ export function createConditionalExpression(
 }
 ```
 
-これらを使って VIf の Node を表現する AST を実装していきます。
+接下来，我们用这些来实现表示 VIf 的 AST 节点：
 
 ```ts
 export const enum NodeTypes {
@@ -399,17 +395,17 @@ export interface IfBranchNode extends Node {
 export type ParentNode =
   | RootNode
   | ElementNode
-  // 追加
+  // 新增
   | IfBranchNode
 ```
 
-### transformer の実装
+### 实现 transformer
 
-AST ができたので、実際にこの AST を生成する transformer を実装していきます。
+有了 AST 定义，我们现在可以实现生成这些 AST 的 transformer。
 
-イメージ的にはいくつかの `ElementNode` をもとに `IfNode` を生成するという感じです。
+大致思路是根据几个 `ElementNode` 生成一个 `IfNode`。
 
-「いくつかの」といったのは、今回の場合、ある一つの Node を違う一つの Node に変形するようなものではなく、
+之所以说"几个"，是因为这里我们不是将一个节点转换为另一个节点，而是处理多个节点的情况。例如：
 
 ```html
 <p v-if="n % 5 === 0 && n % 3 === 0">FizzBuzz</p>
@@ -418,15 +414,11 @@ AST ができたので、実際にこの AST を生成する transformer を実�
 <p v-else>{{ n }}</p>
 ```
 
-のような複数の ElementNode があった場合には v-if ~ v-else までを一つの IfNode として生成する必要があります。
+当有多个 ElementNode 时，我们需要将从 v-if 到 v-else 的所有节点生成为一个 IfNode。
 
-最初の v-if にマッチした場合、後続の Node が v-else-if や v-else に当たるものでないかどうかを判定しながら IfNode を生成していきます。
+当匹配到第一个 v-if 时，我们会检查后续节点是否为 v-else-if 或 v-else，同时生成 IfNode。
 
-具体的な それぞれの処理は processIf という関数に逃しておくとして、とりあえず大枠を実装してみましょう。
-先ほどの `createStructuralDirectiveTransform` を活用します。
-
-具体的には、最終的に codegenNode に先ほど実装した AST を詰めていきたいわけなので、
-この transformer の `onExit` で Node を生成します。
+我们将具体处理放在 processIf 函数中，先实现大体框架，利用前面的 `createStructuralDirectiveTransform` 函数：
 
 ```ts
 export const transformIf = createStructuralDirectiveTransform(
@@ -466,9 +458,9 @@ export function processIf(
 ```
 
 ```ts
-/// codegenNode を生成するのに使用した関数たち
+/// 用于生成 codegenNode 的函数
 
-// branch の codegenNode 生成
+// 生成分支的 codegenNode
 function createCodegenNodeForBranch(
   branch: IfBranchNode,
   context: TransformContext,
@@ -477,10 +469,10 @@ function createCodegenNodeForBranch(
     return createConditionalExpression(
       branch.condition,
       createChildrenCodegenNode(branch, context),
-      // alternate はとりあえずコメントアウトで生成するようになっています。
-      // v-else-if や v-if が来た時に alternate を対象の Node に書き換えます。
-      // `parentCondition.alternate = createCodegenNodeForBranch(branch, context);` の部分です
-      // もし、v-else-if や v-else がこなかった場合には、このまま CREATE_COMMENT の Node になります。
+      // alternate 暂时生成为注释节点
+      // 当有 v-else-if 或 v-else 时，会将 alternate 替换为对应节点
+      // 即 `parentCondition.alternate = createCodegenNodeForBranch(branch, context);` 部分
+      // 如果没有 v-else-if 或 v-else，则保持为 CREATE_COMMENT 节点
       createCallExpression(context.helper(CREATE_COMMENT), ['""', 'true']),
     ) as IfConditionalExpression
   } else {
@@ -492,7 +484,7 @@ function createChildrenCodegenNode(
   branch: IfBranchNode,
   context: TransformContext,
 ): VNodeCall {
-  // branch から vnode call を取り出すだけ
+  // 从分支中提取 vnode call
   const { children } = branch
   const firstChild = children[0]
   const vnodeCall = (firstChild as ElementNode).codegenNode as VNodeCall
@@ -502,7 +494,7 @@ function createChildrenCodegenNode(
 function getParentCondition(
   node: IfConditionalExpression,
 ): IfConditionalExpression {
-  // node から辿って 末端の Node を取得する
+  // 从节点开始遍历，获取末端节点
   while (true) {
     if (node.type === NodeTypes.JS_CONDITIONAL_EXPRESSION) {
       if (node.alternate.type === NodeTypes.JS_CONDITIONAL_EXPRESSION) {
@@ -515,13 +507,12 @@ function getParentCondition(
 }
 ```
 
-`processIf` ではより具体的な AST Node の変形処理を行なっていきます。
+现在我们在 `processIf` 中实现更具体的 AST 节点转换逻辑。
 
-if / else-if / else の場合がありますが、まずは `if` だった場合を考えてみます。
+首先考虑 `if` 的情况，这是比较简单的情况。我们只需要生成 IfNode，并执行 codegenNode 的生成。
+在这个过程中，我们将当前节点作为 IfBranch 生成，将其添加到 IfNode 中，并用 IfNode 替换当前节点。
 
-こちらはかなり単純です。 IfNode を生成し、codegenNode の生成を実行してあげるだけです。
-この際、今の Node を IfBranch としてを生成し、それを IfNode に持たせた上で IfNode に replace しておきます。
-
+结构变化如下：
 ```
 - parent
   - currentNode
@@ -532,8 +523,6 @@ if / else-if / else の場合がありますが、まずは `if` だった場合
   - IfNode
     - IfBranch (currentNode)
 ```
-
-のように構造を変更するイメージです。
 
 ```ts
 export function processIf(
@@ -546,7 +535,7 @@ export function processIf(
     isRoot: boolean,
   ) => (() => void) | undefined,
 ) {
-  // あらかじめ、exp には processExpression を実行しておきます。
+  // 预先对 exp 执行 processExpression
   if (!context.isBrowser && dir.exp) {
     dir.exp = processExpression(dir.exp as SimpleExpressionNode, context)
   }
@@ -577,11 +566,10 @@ function createIfBranch(node: ElementNode, dir: DirectiveNode): IfBranchNode {
 }
 ```
 
-次は v-if 以外の場合を考えてみましょう。
+接下来处理 v-if 以外的情况。
 
-context から parent の children を辿って siblings を取得し、  
-現在の node (自身) から順にループを回し、自身をもとに IfBranch を生成して branches に push していきます。  
-この際、コメントや空のテキストは削除してしまいます。
+我们从 context 获取 parent 的 children，找到 siblings，从当前节点（自身）开始循环遍历，
+根据自身生成 IfBranch 并添加到 branches 中。同时，我们会删除注释和空文本节点。
 
 ```ts
 if (dir.name === 'if') {
@@ -619,18 +607,18 @@ if (dir.name === 'if') {
 }
 ```
 
-これをみても分かる通り、実は else-if と else は区別していません。
+可以看出，我们实际上没有区分 else-if 和 else。
 
-AST 上でも condition がない場合は else というふうな定義にしているので、特に考えることはないのです。  
-(`createIfBranch` の `dir.name === "else" ? undefined : dir.exp` の部分で吸収)
+在 AST 中，我们通过 condition 是否存在来区分，如果不存在则视为 else。
+（这在 `createIfBranch` 中通过 `dir.name === "else" ? undefined : dir.exp` 实现）
 
-重要なのは、`if` であった場合に `IfNode` を生成しておくということで、それ以外はその Node の branches に突っ込んでいけばいいわけです。
+关键点是在遇到 `if` 时生成 `IfNode`，然后对于其他情况，只需将它们添加到该节点的 branches 中。
 
-ここまで来れば transformIf の実装は終わりです。あとは周辺に少しだけ手を加えます。
+transformIf 的实现就此完成。接下来我们需要对周边代码进行一些调整。
 
-traverseNode で、IfNode が持つ branches に対して traverseNode を実行してあげるようにします。
+我们需要确保 traverseNode 能够处理 IfNode 的 branches，并对它们执行 traverseNode。
 
-IfBranch も traverseChildren の対象にしてあげます。
+我们还需要将 IfBranch 添加到 traverseChildren 的处理对象中。
 
 ```ts
 export function traverseNode(
@@ -643,14 +631,14 @@ export function traverseNode(
   switch (node.type) {
     // .
     // .
-    // 追加
+    // 新增
     case NodeTypes.IF:
       for (let i = 0; i < node.branches.length; i++) {
         traverseNode(node.branches[i], context)
       }
       break
 
-    case NodeTypes.IF_BRANCH: // 追加
+    case NodeTypes.IF_BRANCH: // 新增
     case NodeTypes.ELEMENT:
     case NodeTypes.ROOT:
       traverseChildren(node, context)
@@ -659,7 +647,7 @@ export function traverseNode(
 }
 ```
 
-あとは、compiler のオプションとして transformIf を登録してあげるだけです。
+最后，我们需要将 transformIf 注册为编译器选项。
 
 ```ts
 export function getBaseTransformPreset(): TransformPreset {
@@ -670,13 +658,13 @@ export function getBaseTransformPreset(): TransformPreset {
 }
 ```
 
-これで transformer が実装できました！
+transformer 已经实现完成！
 
-あとは codegen を実装すれば、v-if の完成です。もう少しです、頑張りましょう！
+剩下的就是实现 codegen，v-if 的实现就完成了。我们已经快接近终点了！
 
-### codegen の実装
+### codegen 实现
 
-あとは楽ちんです。ConditionalExpression の Node をもとにコードを生成すれば OK です。
+最后的部分很简单，我们只需要根据 ConditionalExpression 节点生成代码：
 
 ```ts
 const genNode = (
@@ -686,7 +674,7 @@ const genNode = (
 ) => {
   switch (node.type) {
     case NodeTypes.ELEMENT:
-    case NodeTypes.IF: // ここを追加するのを忘れずに！
+    case NodeTypes.IF: // 别忘了添加这个！
       genNode(node.codegenNode!, context, option)
       break
     // .
@@ -737,16 +725,16 @@ function genConditionalExpression(
 }
 ```
 
-いつも通り、AST をもとに条件式を生成しているだけなので特に難しいことはないと思います。
+这里我们只是基于 AST 生成条件表达式，没有什么特别复杂的地方。
 
 ## 完成！！
 
-さてさて、久しぶりに少しファットなチャプターになってしまいましたがこれで v-if の実装は完了です！ (お疲れ様でした。)
+这是一个相对较大的章节，但现在我们已经完成了 v-if 的实现！（辛苦了！）
 
-実際に動かしてみましょう！！！！
+让我们实际运行一下！！！！
 
-ちゃんと動いています！
+运行正常！
 
-![vif_fizzbuzz](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/vif_fizzbuzz.png)
+![vif_fizzbuzz](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/vif_fizzbuzz.png)
 
-当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/040_v_if_and_structural_directive)
+到此为止的源代码: [GitHub](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/040_v_if_and_structural_directive) 

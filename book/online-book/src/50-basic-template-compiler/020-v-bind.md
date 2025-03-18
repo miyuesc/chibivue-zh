@@ -1,10 +1,10 @@
-# ディレクティブを実装しよう (v-bind)
+# 实现指令 (v-bind)
 
-## 方針
+## 方针
 
-ここからは Vue.js の醍醐味であるディレクティブを実装していきます。  
-例の如く、ディレクティブも transformer に噛ませるのですが、そこで登場するのが DirectiveTransform というインタフェースです。
-DirectiveTransform は DirectiveNode,ElementNode を受け取り、Transform 後の Property を返すようなものになっています。
+从这里开始，我们将实现 Vue.js 的精髓——指令系统。  
+和往常一样，指令也需要经过 transformer 处理，这里会用到 DirectiveTransform 这个接口。
+DirectiveTransform 接收 DirectiveNode 和 ElementNode，返回转换后的 Property。
 
 ```ts
 export type DirectiveTransform = (
@@ -18,7 +18,7 @@ export interface DirectiveTransformResult {
 }
 ```
 
-まずは今回目指す開発者インタフェースから確認してみましょう。
+首先，让我们确认一下本次要实现的开发者接口。
 
 ```ts
 import { createApp, defineComponent } from 'chibivue'
@@ -53,46 +53,46 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-v-bind には 概ね上記のような記法があります。詳しくは下記の公式ドキュメントを参照してください。  
-class や style についても今回取り扱います。
+v-bind 有上面这些基本用法。更详细的内容，请参考官方文档。  
+本次我们也将处理 class 和 style 的特殊绑定。
 
 https://vuejs.org/api/built-in-directives.html#v-bind
 
-## AST の変更
+## AST 的修改
 
-まず、AST についてですが、今は exp, arg 共に string という簡易的なものになってしまっているので、ExpressionNode を受け取れるように変更します。
+首先，对于 AST，目前 exp 和 arg 都是简单的 string 类型，我们需要修改它们以接收 ExpressionNode。
 
 ```ts
 export interface DirectiveNode extends Node {
   type: NodeTypes.DIRECTIVE
   name: string
-  exp: ExpressionNode | undefined // ここ
-  arg: ExpressionNode | undefined // ここ
+  exp: ExpressionNode | undefined // 这里
+  arg: ExpressionNode | undefined // 这里
 }
 ```
 
-改めて `name` と `arg` と `exp` について説明しておくと、
-name は v-bind や v-on などのディレクティブ名です。on や bind が入ります。
-今回は v-bind を実装していくので、bind が入ります。
+再次解释一下 `name`、`arg` 和 `exp`：
+name 是指令名称，如 v-bind 或 v-on 中的 bind 或 on。
+这次我们要实现 v-bind，所以这里会是 bind。
 
-arg は `:` で指定する引数です。v-bind でいうと、 id や style などが入ります。  
-(v-on の場合は click や input などがここに入ってきます。)
+arg 是用 `:` 指定的参数。对于 v-bind 来说，这里会是 id 或 style 等。  
+（对于 v-on 来说，这里会是 click 或 input 等。）
 
-exp は右辺です。`v-bind:id="count"` でいうと count が入ります。  
-exp も arg も、動的に変数を埋め込むことができるので、型は `ExpressionNode` になります。  
-( `v-bind:[key]="count"` のように arg も動的にできるので)
+exp 是右侧的表达式。对于 `v-bind:id="count"`，这里会是 count。  
+由于 exp 和 arg 都可以动态地嵌入变量，所以它们的类型是 `ExpressionNode`。  
+（因为 arg 也可以是动态的，如 `v-bind:[key]="count"`）
 
-![dir_ast](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/dir_ast.drawio.png)
+![dir_ast](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/dir_ast.drawio.png)
 
-## Parser の変更
+## Parser 的修改
 
-parser の実装をこの AST の変更に追従します。exp, arg を `SimpleExpressionNode` としてパースします。
+我们需要修改 parser 的实现来适应 AST 的这些变更。将 exp 和 arg 解析为 `SimpleExpressionNode`。
 
-ついでに v-on などで使う `@` やスロットで使う `#` などもパースします。  
-(正規表現を考えるのが面倒くさい(説明しながら徐々に追加するのが面倒臭い)のでとりあえず本家のものをそのまま拝借します)  
-参考: https://github.com/vuejs/core/blob/623ba514ec0f5adc897db90c0f986b1b6905e014/packages/compiler-core/src/parse.ts#L802
+顺便也解析 v-on 使用的 `@` 和插槽使用的 `#` 等。  
+（因为编写正则表达式比较麻烦，所以我们暂时直接借用官方的实现）  
+参考：https://github.com/vuejs/core/blob/623ba514ec0f5adc897db90c0f986b1b6905e014/packages/compiler-core/src/parse.ts#L802
 
-少し長いので、コード中にコメントを書きながら説明していきます。
+下面的代码有点长，我会在代码中添加注释来解释。
 
 ```ts
 function parseAttribute(
@@ -105,15 +105,15 @@ function parseAttribute(
   // .
   // directive
   const loc = getSelection(context, start)
-  // ここの正規表現は本家から拝借
+  // 这里的正则表达式是从官方借用的
   if (/^(v-[A-Za-z0-9-]|:|\.|@|#)/.test(name)) {
     const match =
-      // ここの正規表現は本家から拝借
+      // 这里的正则表达式是从官方借用的
       /(?:^v-([a-z0-9-]+))?(?:(?::|^\.|^@|^#)(\[[^\]]+\]|[^\.]+))?(.+)?$/i.exec(
         name,
       )!
 
-    // name 部分のマッチを見て、`:` で始まっていた場合には bind として扱う
+    // 检查 name 部分的匹配，如果以 `:` 开头，则视为 bind
     let dirName =
       match[1] ||
       (startsWith(name, ':') ? 'bind' : startsWith(name, '@') ? 'on' : '')
@@ -131,7 +131,7 @@ function parseAttribute(
       let content = match[2]
       let isStatic = true
 
-      // `[arg]` のような動的な引数の場合、`isStatic` を false として、中身を content として取り出す
+      // 如果是动态参数，如 `[arg]`，则将 `isStatic` 设为 false，并提取内容
       if (content.startsWith('[')) {
         isStatic = false
         if (!content.endsWith(']')) {
@@ -166,31 +166,29 @@ function parseAttribute(
 }
 ```
 
-これで今回扱いたい AST Node にパースすることができました。
+现在我们可以将模板解析为我们需要的 AST 节点了。
 
-## Transformer の実装
+## Transformer 的实现
 
-続いて、この AST を Codegen 用の AST に transform する実装を書いていきます。  
-少々複雑なので、以下の図に軽く流れをまとめました。まずはそちらをご覧ください。  
-大まかに、必要な項目を挙げると、v-bind に引数が存在するかどうか、class かどうか、style かどうかです。  
-※ 今回関係してくる処理以外の部分は省略しています。(あまり厳格な図ではありませんがご了承ください。)
+接下来，我们将实现将这个 AST 转换为 Codegen 用的 AST 的功能。  
+这个过程比较复杂，所以我在下图中简单总结了流程。请先看一下这张图。  
+大致需要考虑的要点有：v-bind 是否有参数、是否是 class、是否是 style 等。  
+※ 图中省略了与本次实现无关的部分。（这不是一个非常严格的图表，请谅解。）
 
-![dir_ast](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/transform_vbind.drawio.png)
+![dir_ast](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/transform_vbind.drawio.png)
 
-まず、前提として、ディレクティブというものは基本的に要素 (element) に対して宣言されているものなので、
+首先，指令基本上是声明在元素（element）上的，所以与指令相关的 transformer 会在 transformElement 中被调用。
 
-ディレクティブに関する transformer は transformElement に呼ばれます。
+这次我们要实现 v-bind，所以会实现一个名为 transformVBind 的函数，  
+需要注意的是，这个函数只处理有 args 的声明。
 
-今回は v-bind を実装したいので、transformVBind と言う関数を実装していくのですが、  
-注意点として、この関数では args が存在している宣言のみの変換を行う点が挙げられます。
-
-transformVBind は、
+transformVBind 的作用是将：
 
 ```
 v-bind:id="count"
 ```
 
-のようなものを、
+这样的表达式转换为：
 
 ```ts
 {
@@ -198,17 +196,17 @@ v-bind:id="count"
 }
 ```
 
-というオブジェクト(実際にはこのオブジェクトを表す Codegen Node)に変換する役割のみを持ちます。
+这样的对象（实际上是表示这个对象的 Codegen Node）。
 
-本家の実装でも、以下のような説明がなされています。
+在官方实现中也有类似的说明：
 
 > codegen for the entire props object. This transform here is only for v-bind _with_ args.
 
-引用元: https://github.com/vuejs/core/blob/623ba514ec0f5adc897db90c0f986b1b6905e014/packages/compiler-core/src/transforms/vBind.ts#L13C1-L14C16
+引用自：https://github.com/vuejs/core/blob/623ba514ec0f5adc897db90c0f986b1b6905e014/packages/compiler-core/src/transforms/vBind.ts#L13C1-L14C16
 
-流れを見てもわかる通り、transformElement では directive の arg をチェックして、存在していなければ transformVBind を実行せず mergeProps という関数呼び出しに変換しています。
+从流程图中可以看出，transformElement 会检查指令的 arg，如果不存在，就不执行 transformVBind，而是转换为 mergeProps 函数调用。
 
-`v-bind="hoge"`の形式で渡された引数と、そのほかの props をマージする関数です。
+这是用于合并 `v-bind="hoge"` 形式传递的参数和其他 props 的函数。
 
 ```vue
 <p v-bind="bindingObject" class="my-class">hello</p>
@@ -220,20 +218,20 @@ v-bind:id="count"
 h('p', mergeProps(bindingObject, { class: 'my-class' }), 'hello')
 ```
 
-また、class と style に関してはさまざまな開発者インタフェースを持っているため、normalize する必要があります。  
+另外，关于 class 和 style，它们有各种开发者接口，需要进行标准化。  
 https://vuejs.org/api/built-in-directives.html#v-bind
 
-normalizeClass と normalizeStyle という関数を実装し、それぞれに適用します。
+我们将实现 normalizeClass 和 normalizeStyle 这两个函数，并分别应用。
 
-arg が動的な場合は、特定が不可能なため、normalizeProps という関数を実装し、それを呼び出すようにします。 (内部で normalizeClass と normalizeStyle を呼び出します)
+如果 arg 是动态的，无法确定具体是什么，就会实现并调用 normalizeProps 函数。（内部会调用 normalizeClass 和 normalizeStyle）
 
-さてここまで実装できたら動作を見てみましょう！
+完成这些实现后，让我们看看效果！
 
-![vbind_test](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/vbind_test.png)
+![vbind_test](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/vbind_test.png)
 
-とっても良さそうです！
+看起来非常不错！
 
-次回は v-on を実装していきます。
+下一次我们将实现 v-on。
 
-当前源代码位于:  
-[GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/020_v_bind)
+到此为止的源代码：  
+[GitHub](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/020_v_bind) 

@@ -1,14 +1,14 @@
-# イベント修飾子
+# 事件修饰符
 
-## 今回やること
+## 本章内容
 
-前回、v-on ディレクティブを実装したので続いてはイベント修飾子を実装します。
+在上一章我们实现了v-on指令，接下来我们将实现事件修饰符。
 
-Vue.js には preventDefault や stopPropagation に対応する修飾子があります。
+Vue.js提供了许多修饰符，如preventDefault和stopPropagation等。
 
 https://ja.vuejs.org/guide/essentials/event-handling.html#event-modifiers
 
-今回は以下のような開発者インターフェースを目指してみましょう。
+本章我们将实现如下的开发者接口：
 
 ```ts
 import { createApp, defineComponent, ref } from 'chibivue'
@@ -27,7 +27,7 @@ const App = defineComponent({
       buffer.value = ''
     };
 
-    return { inputText, buffer, handleInput,fun submit }
+    return { inputText, buffer, handleInput, submit }
   },
 
   template: `<div>
@@ -47,21 +47,21 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-特に、以下の部分に注目してください。
+请特别注意以下部分：
 
 ```html
 <form @submit.prevent="submit"></form>
 ```
 
-`@submit.prevent` という記述があります。これは submit イベントのハンドラを呼び出す際に、`preventDefault` を実行するという意味です。
+这里有一个`@submit.prevent`的写法。这表示在调用submit事件的处理程序时，执行`preventDefault`。
 
-この `.prevent` を記述しない場合、submit 時にページがリロードされてしまいます。
+如果不添加`.prevent`，提交表单时页面会刷新。
 
-## AST と Parser の実装
+## AST和Parser的实现
 
-テンプレートの新しいシンタックスを追加するわけなので、Parser と AST の変更が必要になります。
+由于我们要添加模板的新语法，需要修改Parser和AST。
 
-まずは AST を見てみましょう。これはとっても簡単で、`DirectiveNode` に `modifiers` というプロパティ(string の配列)を追加するだけです。
+首先看看AST的修改。这非常简单，只需在`DirectiveNode`中添加一个`modifiers`属性（字符串数组）：
 
 ```ts
 export interface DirectiveNode extends Node {
@@ -69,13 +69,13 @@ export interface DirectiveNode extends Node {
   name: string
   exp: ExpressionNode | undefined
   arg: ExpressionNode | undefined
-  modifiers: string[] // ここを追加
+  modifiers: string[] // 新增此字段
 }
 ```
 
-これに合わせて Parser も実装します。
+然后实现相应的Parser部分。
 
-実は本家から拝借した正規表現にもう含まれているので、こちらの実装もとても簡単です。
+实际上，我们从Vue官方借鉴的正则表达式中已经包含了这部分，所以实现也很简单：
 
 ```ts
 function parseAttribute(
@@ -85,7 +85,7 @@ function parseAttribute(
   // .
   // .
   // .
-  const modifiers = match[3] ? match[3].slice(1).split('.') : [] // match 結果から修飾子を取り出す
+  const modifiers = match[3] ? match[3].slice(1).split('.') : [] // 从match结果中提取修饰符
   return {
     type: NodeTypes.DIRECTIVE,
     name: dirName,
@@ -97,62 +97,61 @@ function parseAttribute(
     },
     loc,
     arg,
-    modifiers, // return に含める
+    modifiers, // 将修饰符包含在返回中
   }
 }
 ```
 
-はい。これで AST と Parser の実装は完了です。
+这样，AST和Parser的实现就完成了。
 
 ## compiler-dom/transform
 
-ここで少し今のコンパイラの構成をおさらいしてみます。
+让我们回顾一下当前编译器的结构。
 
-現状は以下のような構成になっています。
+目前的结构如下：
 
-![50-027-compiler-architecture](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/50-027-compiler-architecture.drawio.png)
+![50-027-compiler-architecture](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/50-027-compiler-architecture.drawio.png)
 
-compiler-core と compiler-dom のそれぞれの役割を改めて理解してみると、  
-compiler-core は DOM に依存しないコンパイラの機能を提供するもので、AST の生成や、その変換を行います。
+重新理解compiler-core和compiler-dom的各自角色：  
+compiler-core提供不依赖DOM的编译器功能，生成AST并进行转换。
 
-これまでに、v-on ディレクティブなどを compiler-core に実装しましたが、これは`@click="handle"` という記述を `{ onClick: handle }` というオブジェクトに変換しているだけで、  
-DOM に依存するような処理は行っていません。
+之前我们在compiler-core中实现了v-on指令，它只是将`@click="handle"`转换为`{ onClick: handle }`这样的对象，没有执行任何依赖DOM的处理。
 
-ここで、今回実装したいものを見てみましょう。  
-今回は実際に `e.preventDefault()` や `e.stopPropagation()` を実行するコードを生成したいです。  
-これらは大きく DOM に依存してしまいます。
+看看我们现在要实现的功能：  
+我们需要生成执行`e.preventDefault()`或`e.stopPropagation()`的代码。  
+这些明显依赖于DOM。
 
-そこで、compiler-dom 側にも transformer を実装していきます。 DOM に関連する transform はここに実装して行くことにしましょう。
+因此，我们需要在compiler-dom中实现transformer。所有与DOM相关的转换都应该在这里实现。
 
-compiler-dom の方に `transformOn` を実装していきたいのですが、runtime-core の `transformOn` との兼ね合いを考える必要があります。  
-兼ね合いというのは、「compiler-core の transform も実行しつつ、compiler-dom で実装した transform を実装するにはどうすればいいのか?」 ということです。
+我们希望在compiler-dom中实现`transformOn`，但需要考虑与compiler-core中已有的`transformOn`的协作。  
+问题是："如何在执行compiler-core的transform的同时，实现compiler-dom中的transform？"
 
-そこでまず、 compiler-core の方に実装してある `DirectiveTransform` という interface に手を加えていきます。
+首先，我们需要修改compiler-core中的`DirectiveTransform`接口：
 
 ```ts
 export type DirectiveTransform = (
   dir: DirectiveNode,
   node: ElementNode,
   context: TransformContext,
-  augmentor?: (ret: DirectiveTransformResult) => DirectiveTransformResult, // 追加
+  augmentor?: (ret: DirectiveTransformResult) => DirectiveTransformResult, // 新增
 ) => DirectiveTransformResult
 ```
 
-augmentor というものを追加してみました。  
-まぁ、これはただのコールバック関数です。 `DirectiveTransform` の interface としてコールバックを受け取れるようにして、transform 関数を拡張可能にしています。
+我们添加了一个augmentor参数。  
+这实际上是一个回调函数，通过在`DirectiveTransform`接口中添加回调使得transform函数可以被扩展。
 
-compiler-dom の方では、compiler-core で実装した transformer をラップした transformer の実装をしていくようにします。
+在compiler-dom中，我们将实现一个包装compiler-core中transformer的新transformer：
 
 ```ts
-// 実装イメージ
+// 实现示例
 
-// compiler-dom側の実装
+// compiler-dom中的实现
 
 import { transformOn as baseTransformOn } from 'compiler-core'
 
 export const transformOn: DirectiveTransform = (dir, node, context) => {
   return baseTransformOn(dir, node, context, () => {
-    /** ここに compiler-dom の独自の実装 */
+    /** 这里是compiler-dom特有的实现 */
     return {
       /** */
     }
@@ -160,23 +159,22 @@ export const transformOn: DirectiveTransform = (dir, node, context) => {
 }
 ```
 
-そして、この compiler-dom 側で実装した `transformOn` を compiler のオプションとして渡してあげれば OK です。  
-以下のような関係図です。  
-全ての transformer を compiler-dom から渡すのではなく、デフォルトの実装は compiler-core に実装しておき、オプションとしてあと乗せ出来るような構成にするイメージです。
+然后，将compiler-dom中实现的`transformOn`作为编译器选项传递即可。  
+关系图如下：  
+我们不需要从compiler-dom传递所有transformer，而是在compiler-core中实现默认实现，然后通过选项添加额外功能的模式。
 
-![50-027-new-compiler-architecture](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/50-027-new-compiler-architecture.drawio.png)
+![50-027-new-compiler-architecture](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/50-027-new-compiler-architecture.drawio.png)
 
-これで compiler-core が DOM に依存せず、compiler-dom 側で DOM に依存した処理を実装しつつ compiler-core の transformer を実行できるようになります。
+这样，compiler-core就不依赖DOM，而compiler-dom可以实现依赖DOM的处理并执行compiler-core的transformer。
 
-## transformer の実装
+## transformer的实现
 
-それでは、compiler-dom 側の transformer を実装していきます。
+现在，让我们实现compiler-dom中的transformer。
 
-どういう風に transform していきましょうか。とりあえず、一概に '修飾子' といってもいろんな種類のものがあるので、  
-今後のことも考えて分類わけできるようにしておきましょう。
+我们应该怎样进行transform呢？首先，"修饰符"有很多不同类型，考虑到未来的扩展，我们应该对它们进行分类。
 
-今回実装するのは 'イベント修飾子' です。
-とりあえず、この eventModifiers として取り出してみましょう。
+我们要实现的是"事件修饰符"。
+先从modifiers中提取出这些事件修饰符：
 
 ```ts
 const isEventModifier = makeMap(
@@ -198,8 +196,8 @@ const resolveModifiers = (modifiers: string[]) => {
 }
 ```
 
-eventModifiers を抽出できたところでこれをどう使いましょうか。
-結論から言うと、これは runtime-dom 側に withModifiers というヘルパー関数を実装し、その関数を呼び出す式に transform していきます。
+提取出eventModifiers后，如何使用它们呢？
+我们将在runtime-dom中实现一个withModifiers辅助函数，然后将表达式转换为调用该函数。
 
 ```ts
 // runtime-dom/runtimeHelpers.ts
@@ -230,17 +228,17 @@ export const transformOn: DirectiveTransform = (dir, node, context) => {
 }
 ```
 
-これで transform 側の実装は概ね終わりです。
+这样，transform部分的实现基本完成。
 
-あとはこの withModifiers を compiler-dom 側で実装していきます。
+接下来在compiler-dom中实现withModifiers函数。
 
-## withModifiers の実装
+## withModifiers的实现
 
-runtime-dom/directives/vOn.ts に実装を進めていきます。
+在runtime-dom/directives/vOn.ts中进行实现。
 
-実装はとてもシンプルです。
+实现非常简单。
 
-イベント修飾子のガード関数を実装して、配列で受け取った修飾子の分だけ実行するような実装をするだけです。
+我们只需实现事件修饰符的守卫函数，并为接收到的每个修饰符执行相应的守卫：
 
 ```ts
 const modifierGuards: Record<string, (e: Event) => void | boolean> = {
@@ -260,20 +258,20 @@ export const withModifiers = (fn: Function, modifiers: string[]) => {
 }
 ```
 
-これで実装はおしまいです。
+至此，实现完成。
 
-動作を確認してみましょう！  
-ボタンを押した際に、ページがリロードされずに input の内容が画面に反映されていれば OK です！
+让我们测试一下！  
+如果点击按钮后页面不刷新，并且input的内容显示在屏幕上，那就成功了！
 
-当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/027_event_modifier)
+完整源代码：[GitHub](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/027_event_modifier)
 
-## その他の修飾子
+## 其他修饰符
 
-さて、ここまできたら他の修飾子も実装してみましょう。
+到这里，我们不妨也实现其他修饰符。
 
-基本的な実装方針は同じです。
+基本实现思路是相同的。
 
-修飾子を以下のように分類してみましょう。
+我们可以将修饰符分类如下：
 
 ```ts
 const keyModifiers = []
@@ -281,16 +279,14 @@ const nonKeyModifiers = []
 const eventOptionModifiers = []
 ```
 
-あとはこれに必要な map を生成して、resolveModifiers でこれらに分類できれば OK です。
+然后创建必要的map，并在resolveModifiers中对它们进行分类即可。
 
-残り気をつけるべき点は 2 点で、
+有两点需要注意：
 
-- 修飾子名と実際の DOM API の名前の差異
-- 特定のキーイベントで実行する helper 関数を新たに実装 (withKeys)
+- 修饰符名称与实际DOM API名称的差异
+- 为特定键事件实现新的辅助函数(withKeys)
 
-です。
+关于这些细节，请边阅读代码边实现！  
+走到这一步的你们应该能够做到。
 
-この辺りは実際にコードを読みながら実装してみてください！  
-ここまできた皆さんなら出来るはずです。
-
-当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/027_event_modifier2)
+完整源代码：[GitHub](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/027_event_modifier2) 

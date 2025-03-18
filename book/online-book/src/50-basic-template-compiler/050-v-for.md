@@ -1,231 +1,207 @@
-# v-for ディレクティブに対応する
+# v-for 指令的实现
 
-## 今回目指す開発者インターフェース
+在VueやReact这样的前端框架中，循环渲染是一个基本需求。在Vue中，这一功能通过`v-for`指令实现。本章我们将实现这一指令。
 
-さて、ディレクティブ実装の続きです。今回は v-for に対応してみようと思います。
+## 开发者接口
 
-まぁ、Vue.js を触ったことあるみなさんならお馴染みのディレクティブだと思います。
+首先，我们来看看`v-for`指令的使用方式。`v-for`指令可以对数组、字符串、对象或范围进行循环。
 
-v-for には様々な syntax があります。
-最もベーシックなのは配列をループすることですが、他にも文字列であったりオブジェクトの key, range, などなど様々なものをループできます。
-
-https://ja.vuejs.org/guide/essentials/list.html
-
-少し長いですが、今回は以下のような開発者インターフェースを目指してみましょう。
+以下是使用`v-for`指令的例子：
 
 ```vue
 <script>
-import { createApp, defineComponent, ref } from 'chibivue'
-
-const genId = () => Math.random().toString(36).slice(2)
-
-const FRUITS_FACTORIES = [
-  () => ({ id: genId(), name: 'apple', color: 'red' }),
-  () => ({ id: genId(), name: 'banana', color: 'yellow' }),
-  () => ({ id: genId(), name: 'grape', color: 'purple' }),
-]
-
 export default {
-  setup() {
-    const fruits = ref([...FRUITS_FACTORIES].map(f => f()))
-    const addFruit = () => {
-      fruits.value.push(
-        FRUITS_FACTORIES[Math.floor(Math.random() * FRUITS_FACTORIES.length)](),
-      )
+  data() {
+    return {
+      // 用于v-for循环的水果数组
+      fruits: [
+        { id: 0, name: 'Apple', color: 'red' },
+        { id: 1, name: 'Banana', color: 'yellow' },
+        { id: 2, name: 'Cherry', color: 'red' },
+      ],
+      // 输入字段的值
+      fruitName: '',
+      fruitColor: '',
     }
-    return { fruits, addFruit }
+  },
+  methods: {
+    // 添加水果的方法
+    addFruit() {
+      const id = this.fruits.reduce((max, f) => Math.max(max, f.id), -1) + 1
+      this.fruits.push({ id, name: this.fruitName, color: this.fruitColor })
+      this.fruitName = ''
+      this.fruitColor = ''
+    },
   },
 }
 </script>
 
 <template>
-  <button @click="addFruit">add fruits!</button>
+  <h1>My Fruits</h1>
 
-  <!-- basic -->
   <ul>
-    <li v-for="fruit in fruits" :key="fruit.id">
-      <span :style="{ backgroundColor: fruit.color }">{{ fruit.name }}</span>
+    <!-- 基本循环 -->
+    <li v-for="fruit in fruits">
+      {{ fruit.name }} - {{ fruit.color }}
     </li>
   </ul>
 
-  <!-- indexed -->
+  <h3>添加水果</h3>
+  <div>
+    <label> 名称: <input v-model="fruitName" /></label>
+  </div>
+  <div>
+    <label> 颜色: <input v-model="fruitColor" /></label>
+  </div>
+  <div>
+    <button @click="addFruit">添加</button>
+  </div>
+
+  <h3>使用索引的循环</h3>
   <ul>
-    <li v-for="(fruit, i) in fruits" :key="fruit.id">
-      <span :style="{ backgroundColor: fruit.color }">{{ fruit.name }}</span>
+    <!-- 使用索引的循环 -->
+    <li v-for="(fruit, i) in fruits">{{ i }}: {{ fruit.name }}</li>
+  </ul>
+
+  <h3>解构和其他变体</h3>
+  <ul>
+    <!-- 使用解构的循环 -->
+    <li v-for="{ id, name, color } in fruits">
+      ID: {{ id }}, 名称: {{ name }}, 颜色: {{ color }}
     </li>
   </ul>
 
-  <!-- destructuring -->
+  <h3>嵌套循环</h3>
   <ul>
-    <li v-for="({ id, name, color }, i) in fruits" :key="id">
-      <span :style="{ backgroundColor: color }">{{ name }}</span>
-    </li>
-  </ul>
-
-  <!-- object -->
-  <ul>
-    <li v-for="(value, key, idx) in fruits[0]" :key="key">
-      [{{ idx }}] {{ key }}: {{ value }}
-    </li>
-  </ul>
-
-  <!-- range -->
-  <ul>
-    <li v-for="n in 10">{{ n }}</li>
-  </ul>
-
-  <!-- string -->
-  <ul>
-    <li v-for="c in 'hello'">{{ c }}</li>
-  </ul>
-
-  <!-- nested -->
-  <ul>
-    <li v-for="({ id, name, color }, i) in fruits" :key="id">
-      <span :style="{ backgroundColor: color }">
-        <span v-for="n in 3">{{ n }}</span>
-        <span>{{ name }}</span>
-      </span>
+    <!-- 嵌套循环 -->
+    <li v-for="(fruit, i) in fruits">
+      {{ i }}: {{ fruit.name }}
+      <ul>
+        <li v-for="(value, key) in fruit">{{ key }}: {{ value }}</li>
+      </ul>
     </li>
   </ul>
 </template>
 ```
 
-急にこんなにいっぱい実装するのかよ！無理だろ！と身構えてしまうかもしれませんが、安心してください、ステップバイステップで説明していきます。
+不用担心，我们会一步步实现这一功能。
 
-## 実装方針
+我们需要实现的是能够编译如下代码：
 
-まず、軽くどういうふうにコンパイルしたいのかということを考えてみて、実装する際に難しそうなポイントはどこなのかということについて考えてみましょう。
-
-まず、目指したいコンパイル結果から見てみましょう。
-
-基本的な構成はそれほど難しいものではありません。renderList というヘルパー関数を runtime-core の方に実装して、リストをレンダリングする式にコンパイルします。
-
-例 1:
-
-```html
-<!-- input -->
-<li v-for="fruit in fruits" :key="fruit.id">{{ fruit.name }}</li>
+```vue
+<li v-for="(fruit, i) in fruits">{{ i }}: {{ fruit.name }}</li>
 ```
 
-```ts
-// output
-h(
-  _Fragment,
-  null,
-  _renderList(fruits, fruit => h('li', { key: fruit.id }, fruit.name)),
-)
+编译成类似这样：
+
+```js
+_renderList(fruits, (fruit, i) => {
+  return _createElementVNode("li", null, [
+    _createTextVNode(i + ": " + fruit.name)
+  ])
+})
 ```
 
-例 2:
+实际上，我们需要一个名为`renderList`的辅助函数来编译列表的渲染，功能类似于：
 
-```html
-<!-- input -->
-<li v-for="(fruit, idx) in fruits" :key="fruit.id">
-  {{ idx }}: {{ fruit.name }}
-</li>
+```js
+export function renderList(source, renderItem) {
+  const ret = []
+  
+  if (Array.isArray(source) || typeof source === 'string') {
+    // 处理数组和字符串
+    const l = source.length
+    for (let i = 0; i < l; i++) {
+      ret.push(renderItem(source[i], i))
+    }
+  } else if (typeof source === 'number') {
+    // 处理数字范围
+    for (let i = 0; i < source; i++) {
+      ret.push(renderItem(i + 1, i))
+    }
+  } else if (typeof source === 'object') {
+    // 处理对象
+    if (source[Symbol.iterator]) {
+      // 处理可迭代对象
+      const arr = Array.from(source)
+      const l = arr.length
+      for (let i = 0; i < l; i++) {
+        ret.push(renderItem(arr[i], i))
+      }
+    } else {
+      // 处理普通对象
+      const keys = Object.keys(source)
+      const l = keys.length
+      for (let i = 0; i < l; i++) {
+        const key = keys[i]
+        ret.push(renderItem(source[key], key, i))
+      }
+    }
+  }
+  
+  return ret
+}
 ```
 
-```ts
-// output
-h(
-  _Fragment,
-  null,
-  _renderList(fruits, fruit => h('li', { key: fruit.id }, fruit.name)),
-)
+不过，SFC的情况下需要考虑局部变量的问题。例如在下面的代码中：
+
+```vue
+<script>
+export default {
+  methods: {
+    getFruits() {
+      return [...] // 返回水果数组
+    }
+  }
+}
+</script>
+
+<template>
+  <ul>
+    <li v-for="fruit in getFruits()">{{ fruit.name }}</li>
+  </ul>
+</template>
 ```
 
-例 3:
+在这里，`getFruits()`需要通过`this`来访问，需要转换为`this.getFruits()`。但在v-for中定义的局部变量（如`fruit`）不应该加上前缀。
 
-```html
-<!-- input -->
-<li v-for="{ name, id } in fruits" :key="id">{{ name }}</li>
+对于：
+
+```vue
+<li v-for="fruit in getFruits()">{{ fruit.name }}</li>
 ```
 
-```ts
-// output
-h(
-  _Fragment,
-  null,
-  _renderList(fruits, ({ name, id }) => h('li', { key: id }, name)),
-)
+应该编译为：
+
+```js
+_renderList(this.getFruits(), (fruit) => {
+  return _createElementVNode("li", null, [
+    _createTextVNode(fruit.name)
+  ])
+})
 ```
 
-後々、renderList の第 1 引数として渡す値は配列以外にも数値やオブジェクトも想定していきますが、  
-一旦、配列のみを想定すると、\_renderList 関数の実装自体は概ね Array.prototype.map と同じようなものだと理解できるかと思います。  
-配列以外の値に関しては、\_renderList の方で正規化してあげればいいだけなので、初めのうちは忘れてしまいましょう。(配列のことだけ考えてれば OK)
+而不是：
 
-そして、ここまで様々なディレクティブを実装してきたみなさんにとってはこのようなコンパイラ(transformer) を実装するのはさほど難しい事ではないとは思います。
-
-## 実装の肝 (難しいポイント)
-
-問題は、SFC で使用する場合です。  
-SFC で使用する際のコンパイラと、ブラウザ上で使用する際のコンパイラの差異を覚えているでしょうか?  
-そうです。`_ctx` を使った式の解決です。
-
-v-for ではいろんな形でユーザー定義のローカル変数が登場するので、それらをうまく収集して rewriteIdentifiers をスキップしていく必要があります。
-
-```ts
-// ダメな例
-h(
-  _Fragment,
-  null,
-  _renderList(
-    _ctx.fruits, // fruits は _ctx からバインドされるものだので prefix がついていて OK
-    ({ name, id }) =>
-      h(
-        'li',
-        { key: _ctx.id }, // ここに _ctx がついてはダメ
-        _ctx.name, // ここに _ctx がついてはダメ
-      ),
-  ),
-)
+```js
+_renderList(this.getFruits(), (fruit) => {
+  return _createElementVNode("li", null, [
+    _createTextVNode(this.fruit.name) /* fruit是局部变量，不应该有this前缀 */
+  ])
+})
 ```
 
-```ts
-// 良い例
-h(
-  _Fragment,
-  null,
-  _renderList(
-    _ctx.fruits, // fruits は _ctx からバインドされるものだので prefix がついていて OK
-    ({ name, id }) =>
-      h(
-        'li',
-        { key: id }, // ここに _ctx がついてはダメ
-        name, // ここに _ctx がついてはダメ
-      ),
-  ),
-)
-```
+因此，我们需要某种方式来区分变量的作用域，以便在编译表达式时做出正确的转换。
 
-ローカル変数の定義は様々で、例 1~3 までそれぞれあります。
+## AST的实现
 
-それぞれの定義を解析し、スキップ対象の識別子を収集していく必要があります。
-
-さて、これをどうやって実現していくかについてですが、それは一旦おいておいて、大枠から実装を始めてしまいましょう。
-
-## AST の実装
-
-とりあえず例の如く、AST を定義しておきます。
-
-今回も v-if の時と同様、transform 後の AST を考えていきます。(パーサの実装は必要ない)
+我们需要为v-for定义相应的AST节点类型。
 
 ```ts
 export const enum NodeTypes {
-  // .
-  // .
+  // ...现有代码...
   FOR, // [!code ++]
-  // .
-  // .
-  JS_FUNCTION_EXPRESSION, // [!code ++]
 }
-
-export type ParentNode =
-  | RootNode
-  | ElementNode
-  | ForNode // [!code ++]
-  | IfBranchNode
 
 export interface ForNode extends Node {
   type: NodeTypes.FOR
@@ -233,23 +209,10 @@ export interface ForNode extends Node {
   valueAlias: ExpressionNode | undefined
   keyAlias: ExpressionNode | undefined
   children: TemplateChildNode[]
-  parseResult: ForParseResult // 後述
-  codegenNode?: ForCodegenNode
+  parseResult: ForParseResult
 }
 
-export interface ForCodegenNode extends VNodeCall {
-  isBlock: true
-  tag: typeof FRAGMENT
-  props: undefined
-  children: ForRenderListExpression
-}
-
-export interface ForRenderListExpression extends CallExpression {
-  callee: typeof RENDER_LIST // 後述
-  arguments: [ExpressionNode, ForIteratorExpression]
-}
-
-// renderList の第二引数でコールバック関数を使用するので、関数式にも対応します。
+// renderList的第二个参数使用回调函数，所以需要支持函数表达式
 export interface FunctionExpression extends Node {
   type: NodeTypes.JS_FUNCTION_EXPRESSION
   params: ExpressionNode | string | (ExpressionNode | string)[] | undefined
@@ -257,7 +220,7 @@ export interface FunctionExpression extends Node {
   newline: boolean
 }
 
-// v-for の場合、 return は決まっているので、それ用のASTとして表現します。
+// v-for的情况下，返回值是确定的，所以使用专门的AST表示
 export interface ForIteratorExpression extends FunctionExpression {
   returns: VNodeCall
 }
@@ -272,25 +235,21 @@ export type JSChildNode =
   | FunctionExpression // [!code ++]
 ```
 
-`RENDER_LIST` に関しては、例の如く runtimeHelpers に追加しておきます。
+对于`RENDER_LIST`，我们也需要添加到runtimeHelpers中：
 
 ```ts
 // runtimeHelpers.ts
-// .
-// .
-// .
+// ...现有代码...
 export const RENDER_LIST = Symbol() // [!code ++]
 
 export const helperNameMap: Record<symbol, string> = {
-  // .
-  // .
+  // ...现有代码...
   [RENDER_LIST]: `renderList`, // [!code ++]
-  // .
-  // .
+  // ...现有代码...
 }
 ```
 
-`ForParseResult` についてですが、こちらの定義は transform/vFor にあります。
+关于`ForParseResult`，其定义在transform/vFor中：
 
 ```ts
 export interface ForParseResult {
@@ -301,44 +260,37 @@ export interface ForParseResult {
 }
 ```
 
-それぞれが何を指しているかというと、
-
-`v-for="(fruit, i) in fruits"` のような場合に
+这些属性分别代表什么呢？以`v-for="(fruit, i) in fruits"`为例：
 
 - source: `fruits`
 - value: `fruit`
 - key: `i`
 - index: `undefined`
 
-のようになります。`index` は v-for にオブジェクトを適応した際に 3 つ目の引数として取られるものです。
+`index`是在v-for循环对象时用作第三个参数的属性。
 
-https://ja.vuejs.org/guide/essentials/list.html#v-for-with-an-object
+可参考Vue的官方文档: https://ja.vuejs.org/guide/essentials/list.html#v-for-with-an-object
 
-![v_for_ast.drawio.png](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/v_for_ast.drawio.png)
+![v_for_ast.drawio.png](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/v_for_ast.drawio.png)
 
-value に関しては、`{ id, name, color, }` のように分割代入を使用した場合は複数の Identifier を持つことになります。
+关于value，当使用如`{ id, name, color, }`这样的解构时，它会包含多个Identifier。
 
-これら、value, key, index で定義された Identifier を収集し、prefix の付与をスキップしていきます。
+我们需要收集这些value、key、index中定义的标识符，并跳过前缀的添加。
 
-## codegen の実装
+## codegen的实现
 
-少し順番が前後してしまいますが、codegen の方は大した話がないので先に実装を済ませてしまいます。  
-やることはたった二つ。`NodeTypes.FOR` のハンドリングと関数式の codegen です。(なんだかんだ関数式は初登場でした)
+我们先实现codegen部分，因为这部分相对简单。主要有两个任务：处理`NodeTypes.FOR`和函数表达式的代码生成。
 
 ```ts
 switch (node.type) {
   case NodeTypes.ELEMENT:
   case NodeTypes.FOR: // [!code ++]
   case NodeTypes.IF:
-  // .
-  // .
-  // .
+  // ...现有代码...
   case NodeTypes.JS_FUNCTION_EXPRESSION: // [!code ++]
     genFunctionExpression(node, context, option) // [!code ++]
     break // [!code ++]
-  // .
-  // .
-  // .
+  // ...现有代码...
 }
 
 function genFunctionExpression(
@@ -377,15 +329,15 @@ function genFunctionExpression(
 }
 ```
 
-特に難しいところはないかと思います。これでおしまいです。
+这部分实现相对简单，现在已经完成了。
 
-## transformer の実装
+## transformer的实现
 
-### 下準備
+### 准备工作
 
-transformer の実装をしていきますが、ここでもまたいくつか下準備です。
+在实现transformer之前，我们需要做一些准备工作。
 
-v-on の時にもやりましたが、v-for の場合には processExpression を実行するタイミングが少し特殊 (ローカル変数を収集しないといけない) なので、transformExpression の方ではスキップしてあげます。
+与v-on类似，v-for的processExpression执行时机有些特殊（需要收集本地变量），所以我们需要在transformExpression中跳过它：
 
 ```ts
 export const transformExpression: NodeTransform = (node, ctx) => {
@@ -398,30 +350,22 @@ export const transformExpression: NodeTransform = (node, ctx) => {
         dir.type === NodeTypes.DIRECTIVE &&
         dir.name !== 'for' // [!code ++]
       ) {
-        // .
-        // .
-        // .
+        // ...现有代码...
       }
     }
   }
 }
 ```
 
-### Identifier の収集
+### 收集标识符
 
-さて、ここからはメインの実装をしていくわけですが、先にどのように identifier を収集していくかを考えていきましょう。
+现在我们来考虑如何收集标识符。
 
-今回は `fruit` のようなシンプルなものだけではなく、`{ id, name, color }` のような分割代入も考慮する必要があります。  
-ついては、例の如く TreeWalker を使用する必要があるようです。
+我们需要处理的不仅仅是简单的标识符如`fruit`，还有解构表达式如`{ id, name, color }`。为此，我们需要使用TreeWalker。
 
-現在 processExpression では identifier を探索し、 `_ctx` を付与するような実装がされていますが、今回は付与せずに収集だけするような実装が必要そうです。これを実現していきます。
+目前，processExpression会搜索标识符并添加`_ctx`前缀，但我们现在需要的是收集标识符而不添加前缀。
 
-まず、収集したものを溜めておくための場所を用意します。これは各 Node が持っておいた方が codegen などの時に便利なので、その Node 上に存在する identifier (複数) を持っておけるようなプロパティを AST に追加してしまいましょう。
-
-対象は `CompoundExpressionNode` と `SimpleExpressionNode` です。
-
-`fruit` のようなシンプルなものは `SimpleExpressionNode` に、  
-`{ id, name, color }` のような分割代入は `CompoundExpressionNode` になります。(イメージで言うと、`["{", simpleExpr("id"), ",", simpleExpr("name"), ",", simpleExpr("color"), "}"]` のような compound expr になる)
+首先，我们需要一个地方来存储收集到的标识符。为了方便codegen等操作，我们给AST节点添加一个属性来存储标识符列表：
 
 ```ts
 export interface SimpleExpressionNode extends Node {
@@ -444,26 +388,20 @@ export interface CompoundExpressionNode extends Node {
 }
 ```
 
-processExpression の方で、ここに identifier を収集していくような実装をし、収集した identifier を transformer の context に追加することによって prefix の付与をスキップしていきます。
+我们需要在processExpression中收集标识符，并将收集到的标识符添加到transformer的上下文中，以便跳过前缀的添加。
 
-今、そこに identifier を追加/削除するための関数は、単一の識別子を string で受け取るような構成になってしまっているため、`{ identifier: string [] }` を想定した形に変更してあげます。
+目前添加/删除标识符的函数只接受单个字符串标识符，我们需要修改它以支持`{ identifier: string[] }`：
 
 ```ts
 export interface TransformContext extends Required<TransformOptions> {
-  // .
-  // .
-  // .
+  // ...现有代码...
   addIdentifiers(exp: ExpressionNode | string): void
   removeIdentifiers(exp: ExpressionNode | string): void
-  // .
-  // .
-  // .
+  // ...现有代码...
 }
 
 const context: TransformContext = {
-  // .
-  // .
-  // .
+  // ...现有代码...
   addIdentifiers(exp) {
     if (!isBrowser) {
       if (isString(exp)) {
@@ -486,17 +424,11 @@ const context: TransformContext = {
       }
     }
   },
-  // .
-  // .
-  // .
+  // ...现有代码...
 }
 ```
 
-それでは、processExpression の方で identifier を収集する実装をやっていきます。
-
-processExpression の方で `asParams` というようなオプションを定義して、こちらが true になっている場合には prefix の付与をスキップして node.identifiers に identifier を収集するような実装をしていきます。
-
-asParams と言うのは、renderList の第二引数のコールバック関数に定義された引数(ローカル変数) のことを想定しているものです。
+现在，我们在processExpression中实现标识符收集功能：
 
 ```ts
 export function processExpression(
@@ -504,7 +436,7 @@ export function processExpression(
   ctx: TransformContext,
   asParams = false, // [!code ++]
 ) {
-  // .
+  // ...
   if (isSimpleIdentifier(rawExp)) {
     const isScopeVarReference = ctx.identifiers[rawExp]
     if (
@@ -514,24 +446,23 @@ export function processExpression(
       node.content = rewriteIdentifier(rawExp)
     } // [!code ++]
     return node
-
-    // .
+    // ...
   }
 }
 ```
 
-simpleIdentifier の場合はこれでおしまいです。問題はそれ以外です。
+对于简单标识符，到此为止。但还需要处理其它情况。
 
-こちらは babelUtils に実装した `walkIdentifiers` を利用していきます。
+我们将使用babelUtils中实现的`walkIdentifiers`。
 
-関数の引数として定義されたローカル変数を想定するので、こちらの方でも 「関数の引数」のように変換し、walkIdentifier の方でも Function の param として探索するようにします。
+由于我们是处理函数参数中定义的本地变量，所以需要将它们转换为"函数参数"的形式，并让walkIdentifier搜索Function的param：
 
 ```ts
-// asParams の場合は、関数の引数のように変換する
+// 当asParams为true时，将表达式转换为函数参数形式
 const source = `(${rawExp})${asParams ? `=>{}` : ``}`
 ```
 
-walkIdentifiers の方が多少複雑です。
+walkIdentifiers的实现稍微复杂一些：
 
 ```ts
 export function walkIdentifiers(
@@ -540,7 +471,7 @@ export function walkIdentifiers(
   knownIds: Record<string, number> = Object.create(null),
   parentStack: Node[] = [],
 ) {
-  // .
+  // ...
 
   ;(walk as any)(root, {
     // prettier-ignore
@@ -554,7 +485,7 @@ export function walkIdentifiers(
         }
         
       } else if (isFunctionType(node)) { // [!code ++]
-        // 後述 (この関数の中で knownIds に identifier を収集している)
+        // 在函数中收集参数标识符到knownIds
         walkFunctionParams(node, (id) => // [!code ++]
           markScopeIdentifier(node, id, knownIds)// [!code ++]
         ); // [!code ++]
@@ -568,11 +499,9 @@ export const isFunctionType = (node: Node): node is Function => {
 }
 ```
 
-やっていることとしては、 node が関数だった場合には、その引数を walk し、identifiers に identifier を収集しているだけです。
+这里的主要工作是，当节点是函数时，遍历其参数并收集标识符到knownIds中。
 
-`walkIdentifiers` を呼び出す側では、`knownIds` を定義し、walkIdentifiers にこの `knownIds` を渡してあげ、収集させます。
-
-`walkIdentifiers` で収集した後で、最後、CompoundExpression を生成するタイミングで `knownIds` を元に identifiers を生成します。
+在调用`walkIdentifiers`的地方，我们定义knownIds并传递给walkIdentifiers，让它收集标识符。收集完成后，在生成CompoundExpression时使用knownIds生成identifiers。
 
 ```ts
 const knownIds: Record<string, number> = Object.create(ctx.identifiers)
@@ -583,19 +512,17 @@ walkIdentifiers(
     node.name = rewriteIdentifier(node.name)
     ids.push(node as QualifiedId)
   },
-  knownIds, // 渡す
+  knownIds, // 传递knownIds
   parentStack,
 )
 
-// .
-// .
-// .
+// ...
 
-ret.identifiers = Object.keys(knownIds) //　knownIds を元に identifiers を生成
+ret.identifiers = Object.keys(knownIds) // 使用knownIds生成identifiers
 return ret
 ```
 
-少しファイルが前後しますが、walkFunctionParams, markScopeIdentifier は何をやっているかというと、これは単純で、 param の walk と Node.name を knownIds に追加しているだけです。
+walkFunctionParams和markScopeIdentifier的功能相对简单：遍历参数并将Node.name添加到knownIds中。
 
 ```ts
 export function walkFunctionParams(
@@ -627,31 +554,28 @@ function markScopeIdentifier(
 }
 ```
 
-これで identifier の収集ができるようになったはずです。 これを使って transformFor を実装し、v-for ディレクティブを完成させましょう！
+现在我们可以收集标识符了，接下来使用这些功能实现transformFor，完成v-for指令！
 
 ### transformFor
 
-さて、山は超えたのであとはいつも通り今あるものを使って transformer を実装していきます。
-あと少し、頑張りましょう！
+与v-if类似，v-for也是结构性指令，所以我们使用createStructuralDirectiveTransform来实现。
 
-こちらも v-if と同様、構造に関与するものなので createStructuralDirectiveTransform で実装していきます。
-
-おそらくこちらはコードベースで説明を書いて行った方がわかりやすいと思うので解説込みのコードを以下に記載しますが、ぜひこちらを見る前にソースコードを読んで自力で実装してみてください！
+下面的代码包含详细的注释，但我建议你在查看这些代码前先尝试自己实现：
 
 ```ts
-// こちらは v-if の時と同様、大枠の実装になります。
-// しかるべきところで processFor を実行し、しかるべきところで codegenNode を生成します。
-// processFor が一番複雑な実装になります。
+// 类似于v-if的实现，这是基本框架
+// 在适当的地方执行processFor，并在适当的地方生成codegenNode
+// processFor是最复杂的部分
 export const transformFor = createStructuralDirectiveTransform(
   'for',
   (node, dir, context) => {
     return processFor(node, dir, context, forNode => {
-      // 想定通り、renderList を呼び出すコードを生成します。
+      // 按预期调用renderList生成代码
       const renderExp = createCallExpression(context.helper(RENDER_LIST), [
         forNode.source,
       ]) as ForRenderListExpression
 
-      // v-for のコンテナとなる Fragment の codegenNode を生成
+      // 生成v-for容器Fragment的codegenNode
       forNode.codegenNode = createVNodeCall(
         context,
         context.helper(FRAGMENT),
@@ -659,7 +583,7 @@ export const transformFor = createStructuralDirectiveTransform(
         renderExp,
       ) as ForCodegenNode
 
-      // codegen の process (processFor 内で、parse, identifiers の収集後に実行されます)
+      // codegen处理（在processFor内完成parse和identifiers收集后执行）
       return () => {
         const { children } = forNode
         const childBlock = (children[0] as ElementNode).codegenNode as VNodeCall
@@ -668,7 +592,7 @@ export const transformFor = createStructuralDirectiveTransform(
           createFunctionExpression(
             createForLoopParams(forNode.parseResult),
             childBlock,
-            true /* force newline */,
+            true /* 强制换行 */,
           ) as ForIteratorExpression,
         )
       }
@@ -682,8 +606,8 @@ export function processFor(
   context: TransformContext,
   processCodegen?: (forNode: ForNode) => (() => void) | undefined,
 ) {
-  // v-for の式を解析します。
-  // parseResult の段階ですでに各 Node の identifiers は収集されています。
+  // 解析v-for表达式
+  // 在parseResult阶段，各节点的identifiers已收集完成
   const parseResult = parseForExpression(
     dir.exp as SimpleExpressionNode,
     context,
@@ -703,17 +627,17 @@ export function processFor(
     children: [node],
   }
 
-  // Node を forNode に置き換える
+  // 将节点替换为forNode
   context.replaceNode(forNode)
 
   if (!context.isBrowser) {
-    // 収集された identifiers を context に追加して、
+    // 将收集到的identifiers添加到context中
     value && addIdentifiers(value)
     key && addIdentifiers(key)
     index && addIdentifiers(index)
   }
 
-  // code を生成します。 (これにより、 ローカル変数の prefix の付与をスキップできる)
+  // 生成代码（这样可以跳过本地变量前缀的添加）
   const onExit = processCodegen && processCodegen(forNode)
 
   return () => {
@@ -725,7 +649,7 @@ export function processFor(
   }
 }
 
-// 正規表現を活用して v-for に与えられた式を解析します。
+// 使用正则表达式解析v-for表达式
 const forAliasRE = /([\s\S]*?)\s+(?:in|of)\s+([\s\S]*)/
 const forIteratorRE = /,([^,\}\]]*)(?:,([^,\}\]]*))?$/
 const stripParensRE = /^\(|\)$/g
@@ -778,7 +702,7 @@ export function parseForExpression(
       keyOffset = exp.indexOf(keyContent, trimmedOffset + valueContent.length)
       result.key = createAliasExpression(loc, keyContent, keyOffset)
       if (!context.isBrowser) {
-        // ブラウザモードでない場合、asParams を true にし、key の identifiers を収集します。
+        // 非浏览器模式下，设置asParams为true，收集key的identifiers
         result.key = processExpression(result.key, context, true)
       }
     }
@@ -797,7 +721,7 @@ export function parseForExpression(
           ),
         )
         if (!context.isBrowser) {
-          // ブラウザモードでない場合、asParams を true にし、index の identifiers を収集します。
+          // 非浏览器模式下，设置asParams为true，收集index的identifiers
           result.index = processExpression(result.index, context, true)
         }
       }
@@ -807,7 +731,7 @@ export function parseForExpression(
   if (valueContent) {
     result.value = createAliasExpression(loc, valueContent, trimmedOffset)
     if (!context.isBrowser) {
-      // ブラウザモードでない場合、asParams を true にし、value の identifiers を収集します。
+      // 非浏览器模式下，设置asParams为true，收集value的identifiers
       result.value = processExpression(result.value, context, true)
     }
   }
@@ -847,12 +771,12 @@ function createParamsList(
 }
 ```
 
-さて、残りは実際にコンパイル後のコードに含まれる renderList の実装であったり、transformer の登録を実装できれば v-for が動くようになるはずです！
+现在，只要实现编译后代码中包含的renderList函数和注册transformer，v-for就应该可以正常工作了！
 
-実際に動かしてみましょう！
+让我们来看一下实际效果：
 
-![v_for](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/v_for.png)
+![v_for](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/v_for.png)
 
-順調そうです。
+看起来一切顺利！
 
-当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/050_v_for)
+到这里的源代码: [GitHub](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/050_v_for) 

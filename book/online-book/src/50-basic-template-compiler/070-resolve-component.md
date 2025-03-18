@@ -1,15 +1,15 @@
-# コンポーネントを解決する
+# 解析组件
 
-実は、まだ私たちの chibivue の template はコンポーネントを解決することができません。  
-ここでそれを実装していくのですが、Vue.js ではコンポーネントの解決方法がいくつかあります。
+实际上，我们的chibivue模板目前还不能解析组件。  
+本章我们将实现这个功能，但首先需要了解Vue.js中有几种组件解析方法。
 
-まずはいくつかの解決方法についておさらいしてみましょう。
+让我们先回顾一下几种解析方法。
 
-## コンポーネントの解決方法
+## 组件的解析方法
 
-### 1. Components Option (ローカル登録)
+### 1. Components选项（局部注册）
 
-おそらく、これが最も単純なコンポーネントの解決方法です。
+这可能是最简单的组件解析方法。
 
 https://vuejs.org/api/options-misc.html#components
 
@@ -31,11 +31,11 @@ export default {
 </template>
 ```
 
-components オプションに指定したオブジェクトの key 名が、テンプレート内で使用できるコンポーネント名になります。
+components选项中指定的对象的key名称就是可以在模板中使用的组件名。
 
-### 2. app に登録 (グローバル登録)
+### 2. 注册到app（全局注册）
 
-作成した Vue アプリケーションの `.component()` メソッドを使うことでアプリケーション全体で使用できるコンポーネントを登録することができます。
+通过使用创建的Vue应用的`.component()`方法，可以注册在整个应用中可用的组件。
 
 https://vuejs.org/guide/components/registration.html#global-registration
 
@@ -50,9 +50,9 @@ app
   .component('ComponentC', ComponentC)
 ```
 
-### 3. 動的コンポーネント + is 属性
+### 3. 动态组件 + is属性
 
-is 属性を使うことで、動的にコンポーネントを切り替えることができます。
+使用is属性可以动态切换组件。
 
 https://vuejs.org/api/built-in-special-elements.html#component
 
@@ -76,9 +76,9 @@ export default {
 </template>
 ```
 
-### 4. script setup 時の import
+### 4. script setup中的import
 
-script setup では、import したコンポーネントをそのまま使用することができます。
+在script setup中，可以直接使用导入的组件。
 
 ```vue
 <script setup>
@@ -92,21 +92,21 @@ import MyComponent from './MyComponent.vue'
 
 ---
 
-他にも、非同期コンポーネントや組み込みコンポーネント, `component` タグなどもありますが、今回は上記 ２ つ (1, 2) に対応してみようと思います。
+除此之外，还有异步组件、内置组件、`component`标签等，但这次我们将主要实现上述两种方法（1和2）。
 
-3 に関しては、1, 2 が対応できれば拡張するだけです。 4 に関してはまだ script setup を実装していないので、少し後回しにします。
+对于第3种方法，如果实现了1和2，只需扩展即可。第4种方法我们暂时不实现，因为我们还没有实现script setup。
 
-## 基本アプローチ
+## 基本思路
 
-どのようにコンポーネントを解決していくかですが、基本的には以下のような流れになります。
+解析组件的基本流程如下：
 
-- どこかしらに、テンプレート内で使う名前とコンポーネントのレコードを保持する
-- ヘルパー関数を用いて、名前を元にコンポーネントを解決する
+- 在某处存储模板中使用的名称与组件的映射记录
+- 使用辅助函数根据名称解析组件
 
-1 の形も 2 の形も、登録する場所が少々異なるだけで、単に名前とコンポーネントのレコードを保持しているだけです。  
-レコードを保持していれば、必要になったところで名前からコンポーネントを解決することができるので、どちらも同じような実装になります。
+无论是第1种形式还是第2种形式，注册位置略有不同，但本质上都只是保存名称和组件的映射记录。  
+有了这些记录，在需要时就可以通过名称解析组件，所以两种实现方式很相似。
 
-先に、想定されるコードと、コンパイル結果を見てみましょう。
+首先，让我们看看预期的代码和编译结果：
 
 ```vue
 <script>
@@ -123,7 +123,7 @@ export default defineComponent({
 ```
 
 ```js
-// コンパイル結果
+// 编译结果
 
 function render(_ctx) {
   const {
@@ -138,19 +138,19 @@ function render(_ctx) {
 }
 ```
 
-このような感じです。
+就是这样。
 
-## 実装
+## 实现
 
 ### AST
 
-コンポーネントとして解決するコードを生成するためには、"MyComponent" がコンポーネントであることを知っている必要があります。  
-parse の段階で、タグ名をハンドリングして、AST 上は通常の Element と Component で分けるようにします。
+为了生成解析组件的代码，我们需要知道"MyComponent"是一个组件。  
+在解析阶段，我们需要处理标签名，在AST中区分普通Element和Component。
 
-まずは AST の定義を考えてみましょう。  
-ComponentNode は通常の Element と同じように、 props や children を持ちます。  
-これらの共通部分を `BaseElementNode` としてまとめつつ、これまでの `ElementNode` は `PlainElementNode` とし、  
-`ElementNode` は `PlainElementNode` と `ComponentNode` のユニオンにしてしまいます。
+首先，思考AST的定义。  
+ComponentNode与普通Element一样，有props和children。  
+我们将这些共同部分作为`BaseElementNode`，将到目前为止的`ElementNode`重命名为`PlainElementNode`，  
+然后将`ElementNode`定义为`PlainElementNode`和`ComponentNode`的联合类型。
 
 ```ts
 // compiler-core/ast.ts
@@ -182,37 +182,37 @@ export interface ComponentNode extends BaseElementNode {
 }
 ```
 
-内容としては今のところ変わりありませんが、tagType だけ区別して、 ast は別物として扱います。  
-今後、これを使って transform の方で helper 関数の追加であったりを行っていきます。
+目前内容没有太大变化，只是通过tagType进行区分，并将ast作为不同的实体对待。  
+接下来，我们将使用它在transform中添加辅助函数等。
 
 ### Parser
 
-さて続いては、上記の AST を生成するためのパーサの実装です。  
-基本的には tag 名を判断して tagType を決めるだけです。
+接下来，我们需要实现生成上述AST的解析器。  
+基本上只需要根据标签名确定tagType即可。
 
-問題は、どうやって Element なのか Component なのかを判断するかです。
+问题是，如何判断是Element还是Component？
 
-基本的な考え方は単純で、"ネイティブなタグかどうか" を判断するだけです。
+基本思路很简单，就是判断"是否为原生标签"。
 
 ・  
 ・  
 ・
 
-「え、いやいや、だからそれをどうやって実装するかという話じゃないの ?」
+"等等，那么如何实现这个判断呢？"
 
-はい。ここは力技です。ネイティブなタグ名をあらかじめ列挙し、それにマッチするかどうかで判断します。  
-列挙するべき項目なんてものは、仕様をみに行けば全て書いてあるはずなので、それを信頼して使います。
+这里我们采用直接方法：预先列举原生标签名，然后检查是否匹配。  
+这些标签在规范中都有详细列出，我们可以信任并使用它们。
 
-ここで一つ、問題があるとすれば、「何がネイティブなタグかどうかは環境によって変わる」という点です。  
-今回でいえば、ブラウザです。何が言いたいのかというと、「compiler-core は環境依存であってはならない」ということです。  
-私たちはこれまで DOM に依存するような実装は compiler-dom に実装してきました。今回のこの列挙もその例外ではありません。
+这里有一个问题："什么是原生标签取决于环境"。  
+在我们的例子中，是浏览器环境。这意味着"compiler-core不应该依赖于特定环境"。  
+我们之前将依赖DOM的实现放在compiler-dom中，这次也不例外。
 
-それに伴って、「ネイティブなタグ名であるかどうか」という関数をパーサのオプションとして外から注入できるような実装にします。
+因此，我们将"是否为原生标签名"作为解析器选项从外部注入。
 
-これからのことも考えて、オプションは色々後から追加しやすいようにしておきます。
+为了未来扩展方便，我们设计一个易于添加的选项结构：
 
 ```ts
-type OptionalOptions = 'isNativeTag' // | TODO: 今後増やしていく (かも)
+type OptionalOptions = 'isNativeTag' // | TODO: 未来可能会增加
 
 type MergedParserOptions = Omit<Required<ParserOptions>, OptionalOptions> &
   Pick<ParserOptions, OptionalOptions>
@@ -258,9 +258,9 @@ export const baseParse = (
 }
 ```
 
-さてさて、そうしましたら、 compiler-dom の方でネイティブなタグ名を列挙して、それをオプションとして渡してあげます。
+接下来，我们在compiler-dom中列举原生标签名，并将其作为选项传递。
 
-compiler-dom と言いましたが、実は列挙自体は shared/domTagConfig.ts で行われています。
+实际上，这些列举在shared/domTagConfig.ts中完成：
 
 ```ts
 import { makeMap } from './makeMap'
@@ -280,13 +280,13 @@ const HTML_TAGS =
 export const isHTMLTag = makeMap(HTML_TAGS)
 ```
 
-なんとも禍々しいですね！！
+这看起来真的很壮观！
 
-でもこれが正しい実装なのです。
+但这确实是正确的实现。
 
 https://github.com/vuejs/core/blob/32bdc5d1900ceb8df1e8ee33ea65af7b4da61051/packages/shared/src/domTagConfig.ts#L6
 
-compiler-dom/parserOptions.ts を作成し、コンパイラに渡します。
+创建compiler-dom/parserOptions.ts并传递给编译器：
 
 ```ts
 // compiler-dom/parserOptions.ts
@@ -317,9 +317,9 @@ export function compile(template: string, option?: CompilerOptions) {
 }
 ```
 
-少し話が飛びましたが、パーサの実装に必要なものは揃ったので、残りの部分を実装していきます。
+准备工作已经完成，现在我们继续实现解析器的其余部分。
 
-残りはとっても簡単です。コンポーネント化どうかを判断して tagType を生やしてあげるだけです。
+剩下的非常简单，只需要判断是否为组件并设置tagType：
 
 ```ts
 function parseElement(
@@ -344,8 +344,8 @@ function parseElement(
 function isComponent(tag: string, context: ParserContext) {
   const options = context.options
   if (
-    // NOTE: Vue.js では、先頭が大文字のタグはコンポーネントとして扱われるようです。
-    // ref: https://github.com/vuejs/core/blob/32bdc5d1900ceb8df1e8ee33ea65af7b4da61051/packages/compiler-core/src/parse.ts#L662
+    // 注意：在Vue.js中，首字母大写的标签被视为组件
+    // 参考：https://github.com/vuejs/core/blob/32bdc5d1900ceb8df1e8ee33ea65af7b4da61051/packages/compiler-core/src/parse.ts#L662
     /^[A-Z]/.test(tag) ||
     (options.isNativeTag && !options.isNativeTag(tag))
   ) {
@@ -354,17 +354,17 @@ function isComponent(tag: string, context: ParserContext) {
 }
 ```
 
-これで parser と AST は OK です。これからはこれらを使って transform と codegen を実装していきます。
+这样parser和AST就完成了。现在我们使用它们来实现transform和codegen。
 
 ### Transform
 
-transform の方でやることはとても簡単です。
+transform的工作非常简单。
 
-transformElement で、Node が ComponentNode だった場合に少々変換してあげるだけです。
+在transformElement中，当Node是ComponentNode时进行一些转换。
 
-この際、context にも component を登録しておいてあげます。  
-これは、codegen の際にまとめて resolve してあげるためです。
-後述しますが、codegen の方ではコンポーネントは assets としてまとめて resolve されます。
+同时，将组件注册到context中。  
+这是为了在codegen阶段统一解析组件。
+如后所述，在codegen中，组件作为assets统一解析。
 
 ```ts
 // compiler-core/transforms/transformElement.ts
@@ -387,7 +387,7 @@ export const transformElement: NodeTransform = (node, context) => {
 function resolveComponentType(node: ComponentNode, context: TransformContext) {
   let { tag } = node
   context.helper(RESOLVE_COMPONENT)
-  context.components.add(tag) // 後述
+  context.components.add(tag) // 将在后面详述
   return toValidAssetId(tag, `component`)
 }
 ```
@@ -404,7 +404,7 @@ export function toValidAssetId(
 }
 ```
 
-context の方にも登録できるようにしておきます。
+我们还需要在context中添加注册功能：
 
 ```ts
 export interface TransformContext extends Required<TransformOptions> {
@@ -429,7 +429,7 @@ export function createTransformContext(
 }
 ```
 
-そして、context にまとめられて components は登録対象のコンポーネントの RootNode に全て登録してあげます。
+然后，将context中收集的components全部注册到RootNode中：
 
 ```ts
 export interface RootNode extends Node {
@@ -451,18 +451,18 @@ export function transform(root: RootNode, options: TransformOptions) {
 }
 ```
 
-これで、あとは RootNode.components を codegen で使うだけです。
+现在，我们只需要在codegen中使用RootNode.components。
 
 ### Codegen
 
-最初に見たコンパイル結果のように、ヘルパー関数に名前を渡して解決するコードを生成するだけです。  
-今後のためを考えて assets というふうな抽象化をしています。
+如最初看到的编译结果，我们只需要生成将名称传递给辅助函数解析的代码。  
+为了未来扩展考虑，我们使用assets这个抽象概念。
 
 ```ts
 export const generate = (ast: RootNode, option: CompilerOptions): string => {
   // .
   // .
-  genFunctionPreamble(ast, context) // NOTE: 将来的には関数の外に出す
+  genFunctionPreamble(ast, context) // 注意：将来会移到函数外部
 
   // prettier-ignore
   if (ast.components.length) { // [!code ++]
@@ -499,13 +499,13 @@ function genAssets(
 }
 ```
 
-### runtime-core 側の実装
+### runtime-core方面的实现
 
-ここまでくれば目的のコードは生成できているので、あとは runtime-core の実装です。
+到这里，目标代码已经生成，剩下的是runtime-core的实现。
 
-#### コンポーネントのオプションとして component を追加できるように
+#### 将component添加为组件选项
 
-これは単純で、option に追加するだけです。
+这很简单，只需添加到option中：
 
 ```ts
 export type ComponentOptions<
@@ -518,9 +518,9 @@ export type ComponentOptions<
 }
 ```
 
-#### app のオプションとして components を追加できるように
+#### 将components添加为app选项
 
-こちらも単純です。
+同样简单：
 
 ```ts
 export interface AppContext {
@@ -554,23 +554,23 @@ export function createAppAPI<HostElement>(
 }
 ```
 
-#### 上記二つからコンポーネントを解決する関数の実装
+#### 实现从上述两个位置解析组件的函数
 
-こちらも特に説明することはないでしょう。  
-ローカル/グローバルに登録されたコンポーネントをそれぞれに探索し、コンポーネントを返します。  
-見つからなかった場合は fallback としてそのまま名前を返します。
+这也没有特别需要解释的地方。  
+我们分别在局部/全局注册的组件中搜索组件，并返回找到的组件。  
+如果找不到，则将名称作为fallback返回。
 
 ```ts
 // runtime-core/helpers/componentAssets.ts
 
 export function resolveComponent(name: string): ConcreteComponent | string {
-  const instance = currentInstance || currentRenderingInstance // 後述
+  const instance = currentInstance || currentRenderingInstance // 后面会详述
   if (instance) {
     const Component = instance.type
     const res =
-      // local registration
+      // 局部注册
       resolve((Component as ComponentOptions).components, name) ||
-      // global registration
+      // 全局注册
       resolve(instance.appContext.components, name)
     return res
   }
@@ -588,12 +588,12 @@ function resolve(registry: Record<string, any> | undefined, name: string) {
 }
 ```
 
-一点、注意点があるのは `currentRenderingInstance` についてです。
+有一点需要注意的是`currentRenderingInstance`。
 
-resolveComponent ではローカル登録されたコンポーネントを辿るために、現在レンダリングされているコンポーネントにアクセスする必要があります。  
-(レンダリング中のコンポーネントの components オプションを探索したいため)
+在resolveComponent中，为了追踪局部注册的组件，我们需要访问当前正在渲染的组件。  
+（因为我们需要查找正在渲染的组件的components选项）
 
-それに伴って、`currentRenderingInstance` というものを用意し、レンダリングする際にこれを更新していく実装にしてみます。
+为此，我们准备了`currentRenderingInstance`，并在渲染时更新它：
 
 ```ts
 // runtime-core/componentRenderContexts.ts
@@ -632,11 +632,11 @@ const setupRenderEffect = (
 }
 ```
 
-## いざ動かしてみる
+## 测试运行
 
-お疲れ様でした。ここまででようやくコンポーネントを解決することができるようになりました。
+辛苦了！到此为止，我们终于能够解析组件了。
 
-実際にプレイグラウンドの方で動かしてみましょう！
+让我们在playground中实际运行看看！
 
 ```ts
 import { createApp } from 'chibivue'
@@ -688,8 +688,8 @@ export default defineComponent({
 </template>
 ```
 
-![resolve_components](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/resolve_components.png)
+![resolve_components](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/resolve_components.png)
 
-正常に動作しているようです！やったね！
+看起来正常运行了！太好了！
 
-当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/060_resolve_components)
+到这里的源代码：[GitHub](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/060_resolve_components) 

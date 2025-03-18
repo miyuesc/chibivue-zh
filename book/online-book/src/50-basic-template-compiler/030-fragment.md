@@ -1,8 +1,8 @@
-# Fragment を実装する
+# 实现 Fragment
 
-## 今の実装の問題点
+## 当前实现的问题
 
-以下のようなコードを playground で実行してみましょう。
+让我们在playground中运行以下代码：
 
 ```ts
 import { createApp, defineComponent } from 'chibivue'
@@ -18,13 +18,13 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-以下のようなエラーが出てしまうかと思います。
+我们会看到以下错误：
 
-![fragment_error.png](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/fragment_error.png)
+![fragment_error.png](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/fragment_error.png)
 
-エラー文をみてみると、 Function コンストラクタで起きているようです。
+从错误信息来看，错误发生在Function构造函数中。
 
-つまり、codegen までは一応成功しているようなので、実際にどのようなコードが生成されたのかみてみましょう。
+这意味着codegen过程基本成功，让我们看看实际生成了什么代码：
 
 ```ts
 return function render(_ctx) {
@@ -36,14 +36,14 @@ return function render(_ctx) {
 }
 ```
 
-return の先がおかしなことになってしまっていますね。今の codegen の実装だと、ルートが配列だった場合(単一のノードではない場合)を考慮できていません。  
-今回はこれを修正していきます。
+return语句出现了问题。当前的codegen实现无法处理根节点是数组（而非单一节点）的情况。  
+现在我们来修复这个问题。
 
-## どういうコードを生成すればいいのか
+## 我们应该生成什么样的代码
 
-修正していくとはいえ、どういうコードを生成できるようになれば良いでしょうか。
+那么，我们应该生成什么样的代码呢？
 
-結論から言うと以下のようなコードになります。
+答案是这样的代码：
 
 ```ts
 return function render(_ctx) {
@@ -63,31 +63,31 @@ return function render(_ctx) {
 }
 ```
 
-この `Fragment` というものは Vue で定義されている symbol です。  
-つまり、Fragment は FragmentNode のような AST として表現されるものではなく、単に ElementNode の tag として表現されます。
+这里的`Fragment`是Vue中定义的一个symbol。  
+也就是说，Fragment不是作为FragmentNode这样的AST节点表示，而只是ElementNode的一个特殊tag。
 
-そして、tag が Fragment あった場合の処理を renderer に実装します。  
-Text と似たよう感じです。
+然后，我们需要在renderer中实现处理tag为Fragment的情况。  
+这与Text节点的处理方式类似。
 
-## 実装していく
+## 开始实现
 
-fragment の symbol は runtime-core/vnode.ts の方に実装されます。
+fragment的symbol定义在runtime-core/vnode.ts中。
 
-VNodeTypes の新たな種類として追加しましょう。
+我们需要将其添加为VNodeTypes的新类型：
 
 ```ts
 export type VNodeTypes =
-  | Component; // `object` になってると思うので、ついでに直しておきました
+  | Component; // 原来是`object`，顺便修正一下
   | typeof Text
-  | typeof Fragment  // これを追加
+  | typeof Fragment  // 新增
   | string
 
-export const Fragment = Symbol(); // これを追加
+export const Fragment = Symbol(); // 新增
 ```
 
-renderer を実装します。
+接下来实现renderer部分。
 
-patch 関数に fragment の時の分岐を追加します。
+在patch函数中添加处理fragment的分支：
 
 ```ts
 if (type === Text) {
@@ -95,7 +95,7 @@ if (type === Text) {
 } else if (shapeFlag & ShapeFlags.ELEMENT) {
   processElement(n1, n2, container, anchor, parentComponent)
 } else if (type === Fragment) {
-  // ここ
+  // 这里
   processFragment(n1, n2, container, anchor, parentComponent)
 } else if (shapeFlag & ShapeFlags.COMPONENT) {
   processComponent(n1, n2, container, anchor, parentComponent)
@@ -104,26 +104,24 @@ if (type === Text) {
 }
 ```
 
-注意点としては、要素の insert や remove は基本的に anchor を目印に実装して行く必要があることです。
+需要注意的是，元素的插入和移除基本上都需要基于anchor来实现。
 
-anchor というのは名の通り、フラグメントの開始と終了の位置を示すものです。
+anchor就是用来标记fragment开始和结束位置的标记。
 
-始端の要素 は 従来から VNode に存在する `el` というプロパティが担いますが、現時点だと終端を表すプロパティが存在しないので追加します。
+开始位置由VNode中现有的`el`属性表示，但目前还没有表示结束位置的属性，所以我们需要添加：
 
 ```ts
 export interface VNode<HostNode = any> {
   // .
   // .
   // .
-  anchor: HostNode | null // fragment anchor // 追加
+  anchor: HostNode | null // fragment anchor // 新增
   // .
   // .
 }
 ```
 
-mount 時に anchor を設定します
-
-そして、mount / patch に anchor として フラグメントの終端を渡してあげます。
+在mount阶段设置anchor，并在mount/patch过程中将fragment的结束位置作为anchor传递：
 
 ```ts
 const processFragment = (
@@ -151,7 +149,7 @@ const processFragment = (
 }
 ```
 
-更新時、fragment の要素が変動する際も注意します。
+在更新时，也需要注意fragment元素发生变化的情况：
 
 ```ts
 const move = (
@@ -169,7 +167,7 @@ const move = (
     for (let i = 0; i < (children as VNode[]).length; i++) {
       move((children as VNode[])[i], container, anchor)
     }
-    hostInsert(vnode.anchor!, container, anchor) // アンカーを挿入
+    hostInsert(vnode.anchor!, container, anchor) // 插入anchor
     return
   }
   // .
@@ -178,7 +176,7 @@ const move = (
 }
 ```
 
-unmount 時も anchor を頼りに要素を削除していきます。
+在unmount时也要依靠anchor来删除元素：
 
 ```ts
 const remove = (vnode: VNode) => {
@@ -195,7 +193,7 @@ const remove = (vnode: VNode) => {
 const removeFragment = (cur: RendererNode, end: RendererNode) => {
   let next
   while (cur !== end) {
-    next = hostNextSibling(cur)! // ※ nodeOps に追加しましょう！
+    next = hostNextSibling(cur)! // ※ 需要在nodeOps中添加！
     hostRemove(cur)
     cur = next
   }
@@ -203,9 +201,9 @@ const removeFragment = (cur: RendererNode, end: RendererNode) => {
 }
 ```
 
-## 動作を見てみる
+## 测试效果
 
-先ほどのコードはきちんと動くようになっているはずです。
+之前的代码现在应该能正常工作了：
 
 ```ts
 import { Fragment, createApp, defineComponent, h, ref } from 'chibivue'
@@ -221,9 +219,9 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-現状だと、v-for ディレクティブなどが使えないことから、template で fragment を使いつつ要素の個数を変化させるような記述ができないので、
+当前由于还不支持v-for指令，我们无法在template中使用fragment并动态改变元素数量，
 
-擬似的に コンパイル後のコードを書いて動作を見てみましょう。
+因此，我们可以编写模拟编译后的代码来测试功能：
 
 ```ts
 import { Fragment, createApp, defineComponent, h, ref } from 'chibivue'
@@ -253,6 +251,6 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-ちゃんと動作しているようです！
+看起来工作正常！
 
-当前源代码位于: [GitHub](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/030_fragment)
+完整源代码：[GitHub](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/030_fragment) 

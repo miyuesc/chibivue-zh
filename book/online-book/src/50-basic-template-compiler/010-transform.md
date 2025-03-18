@@ -1,12 +1,12 @@
-# Transformer 的实现和 Codegen 的重构(Basic Template Compiler 基础模板编译器章节开始啦)
+# 实现 Transformer 和重构 Codegen（基础模板编译器部分开始）
 
-## 回顾原有实现
+## 回顾现有实现
 
-さて、ここからはテンプレートのコンパイラをより本格的に実装していきます。  
-Minimum Example 部門でやったところから少し時間が空いてしまったので、今の実装がどうなっていたか少しおさらいをしておきましょう。  
-主なキーワードは Parse, AST, Codegen でした。
+从现在开始，我们将更加深入地实现模板编译器。  
+由于距离最小示例部分已经过了一段时间，让我们先回顾一下当前的实现是什么样的。  
+主要关键词是 Parse、AST 和 Codegen。
 
-![me_template_compiler_design](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/me_template_compiler_design.drawio.png)
+![me_template_compiler_design](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/me_template_compiler_design.drawio.png)
 
 ```ts
 export function baseCompile(
@@ -19,12 +19,12 @@ export function baseCompile(
 }
 ```
 
-実は、この構成は本家のものと少し違っています。  
-少し本家のコードを覗いてみましょう。
+实际上，这个结构与 Vue.js 官方版本有些不同。  
+让我们看一下官方代码。
 
 https://github.com/vuejs/core/blob/37a14a5dae9999bbe684c6de400afc63658ffe90/packages/compiler-core/src/compile.ts#L61
 
-お分かりいただけるでしょうか....
+你能看出来吗？
 
 ```ts
 export function baseCompile(
@@ -38,26 +38,26 @@ export function baseCompile(
 }
 ```
 
-のようになっていることが。
+就是这样的结构。
 
-今回はこの transform という関数を実装していきます。
+这次我们将实现这个 transform 函数。
 
-![design_with_transformer](https://raw.githubusercontent.com/Ubugeeei/chibivue/main/book/images/design_with_transformer.drawio.png)
+![design_with_transformer](https://raw.githubusercontent.com/chibivue-land/chibivue/main/book/images/design_with_transformer.drawio.png)
 
-## transform とは?
+## transform 是什么？
 
-上記のコードでもなんとなく想像がつく通り、パースによって得られた AST を transform によってなんらかしらの形に変換しています。
+正如上述代码所示，transform 函数将解析得到的 AST 转换成某种形式。
 
-ここを読んでれば、なんとなく想像がつくかもしれません。  
+如果你阅读这部分代码，可能会有一些了解：  
 https://github.com/vuejs/core/blob/37a14a5dae9999bbe684c6de400afc63658ffe90/packages/compiler-core/src/ast.ts#L43C1-L51C23
 
-この、VNODE_CALL と JS から始まる名の付いた AST コードこそが今回扱うものです。
-Vue.js のテンプレートコンパイラは、Template を解析した結果としての AST と、生成するコードを表す AST で分かれています。  
-今の我々の実装は前者の AST のみを扱っています。
+这些以 VNODE_CALL 和 JS 开头命名的 AST 代码就是我们将要处理的内容。
+Vue.js 的模板编译器将 AST 分为两种：一种是表示解析模板结果的 AST，另一种是表示要生成的代码的 AST。  
+目前我们的实现只处理了前者。
 
-`<p>hello</p>`というテンプレートが入力として与えられたことを考えてみます。
+考虑输入模板 `<p>hello</p>`。
 
-まず、パースによって以下のような AST が生成されます。ここまでは既存実装の通りです。
+首先，通过解析生成以下 AST。这部分与现有实现相同：
 
 ```ts
 interface ElementNode {
@@ -79,14 +79,14 @@ interface TextNode {
 }
 ```
 
-「生成するコードを表す AST」というのがどのようなものかというと、まずは生成するコードがどのようなものかについて考えてみてください。
-以下のようなものだと思います。
+关于"表示要生成的代码的 AST"是什么样的，我们先考虑一下要生成的代码会是什么样的。
+应该是这样的：
 
 ```ts
 h('p', {}, ['hello'])
 ```
 
-これを表す AST だということです。つまり、生成されるべき JavaScript を表現するための AST で、概ね以下のようなオブジェクトです。
+这就是表示要生成的代码的 AST。换句话说，它是表示应该生成的 JavaScript 的 AST，大致是这样的对象：
 
 ```ts
 interface VNodeCall {
@@ -113,21 +113,21 @@ type TemplateChildNode = ElementNode | InterpolationNode | TextNode
 }
 ```
 
-このように、Codegen で生成されるコードを AST として表現したものが「生成するコードを表す AST」です。
-今はこれをわざわざ分けるほどの利点が感じられないかもしれませんが、これからディレクティブを実装したりしていくにあたっては便利なのです。
-input に着目した AST と output に着目した AST に分ける感じで、`input の AST -> output の AST` の変換を行う関数こそが `transform` です。
+这样，"表示要生成的代码的 AST"就是 Codegen 过程中将生成的代码表示为 AST 的形式。
+目前，这种分离可能看起来没有太大好处，但在实现指令等功能时会变得非常有用。
+按照关注输入的 AST 和关注输出的 AST 来分开，`transform` 函数就是执行 `输入的 AST -> 输出的 AST` 转换的函数。
 
 ## Codegen Node
 
-流れは掴めたと思うので、改めてどのような Node を扱うのか(どのような Node に変換したいのか)を確認してみます。
+既然我们已经理解了流程，让我们再次确认我们要处理哪些 Node（我们想要转换成哪些 Node）。
 
-最終的には以下の Node を扱います。
+最终我们将处理以下 Node：
 https://github.com/vuejs/core/blob/37a14a5dae9999bbe684c6de400afc63658ffe90/packages/compiler-core/src/ast.ts#L43C1-L51C23
 
-この、"JS" から始まる Node + VNODE_CALL が output に着目した AST (以下 CodegenNode と呼びます) です。
-しかし、CodegenNode の全てがこれらの Node で構成されているというわけではなく、ElementNode や InterpolationNode などを含んで構成されることになります。
+这些以"JS"开头的 Node 加上 VNODE_CALL 就是关注输出的 AST（以下称为 CodegenNode）。
+但是，CodegenNode 并不是完全由这些 Node 组成的，而是包含 ElementNode、InterpolationNode 等来构成的。
 
-今回扱うものを列挙しつつコメントで説明します。多少省略しているものもあるので、正確にはソースコードを参照してください。
+下面列举我们将要处理的节点，并用注释解释。有些内容会略有简化，详细信息请参考源代码。
 
 ```ts
 export interface SimpleExpressionNode extends Node {
@@ -137,12 +137,12 @@ export interface SimpleExpressionNode extends Node {
   identifiers?: string[]
 }
 
-// h関数をcallしている式を表すNodeです。
-// `h("p", { class: 'message'}, ["hello"])` のようなものを想定しています。
+// 表示调用 h 函数的表达式的节点。
+// 例如：`h("p", { class: 'message'}, ["hello"])`
 export interface VNodeCall extends Node {
   type: NodeTypes.VNODE_CALL
   tag: string | symbol
-  props: ObjectExpression | undefined // NOTE: ソースコードでは PropsExpression として実装しています (今後拡張があるので)
+  props: ObjectExpression | undefined // 注意：在源代码中实现为 PropsExpression（为了未来扩展）
   children:
     | TemplateChildNode[] // multiple children
     | TemplateTextChildNode
@@ -155,7 +155,7 @@ export type JSChildNode =
   | ArrayExpression
   | ExpressionNode
 
-// JavaScript の Object を想定しているNodeです。 VNodeCall の props などが持つことになります。
+// 表示 JavaScript 对象的节点。VNodeCall 的 props 等会持有它。
 export interface ObjectExpression extends Node {
   type: NodeTypes.JS_OBJECT_EXPRESSION
   properties: Array<Property>
@@ -166,18 +166,18 @@ export interface Property extends Node {
   value: JSChildNode
 }
 
-// JavaScript の Array を想定しているNodeです。 VNodeCall の children などが持つことになります。
+// 表示 JavaScript 数组的节点。VNodeCall 的 children 等会持有它。
 export interface ArrayExpression extends Node {
   type: NodeTypes.JS_ARRAY_EXPRESSION
   elements: Array<string | Node>
 }
 ```
 
-## Transformer の設計
+## Transformer 的设计
 
-transformer の実装をしていく前に設計についてです。
-まず、初めに押さえておくべきことは transformer は 2 種類あるということで、NodeTransform と DirectiveTransform というものが存在します。
-これらは名前の通り、Node の変換とディレクティブの変換に関するもので、以下のようなインタフェースを取ります。
+在实现 transformer 之前，我们需要了解其设计。
+首先，需要知道的是 transformer 有两种类型：NodeTransform 和 DirectiveTransform。
+它们分别用于节点转换和指令转换，接口如下：
 
 ```ts
 export type NodeTransform = (
@@ -194,19 +194,19 @@ export type NodeTransform = (
 export type DirectiveTransform = Function
 ```
 
-DirectiveTransform の方はのちのチャプターのディレクティブを実装していくところで取り上げるのでとりあえず Function というふうにしておきます。  
-NodeTransform も DirectiveTransform も実態としては関数です。AST を変換するための関数だと思ってもらえれば問題ないです。  
-NodeTransform の結果が関数になっていることに注目してください。transform を実装する際に関数を return するように実装しておくと、その関数はその node の transform 後に実行されるようになっています。(onExit という名前のプロセスです。)  
-Node の transform が適応された後に実行したい処理などはここに記述します。これについては後述の traverseNode という関数の説明と一緒に説明を行います。
-インタフェースの説明は主には上記の通りです。
+DirectiveTransform 将在后面实现指令的章节中讨论，现在暂时定义为 Function。  
+NodeTransform 和 DirectiveTransform 本质上都是函数，它们是用来转换 AST 的函数。  
+请注意 NodeTransform 的返回值是函数。当实现 transform 时，如果函数返回了一个函数，这个函数会在节点转换后执行（称为 onExit 过程）。  
+在节点转换应用后想执行的处理可以写在这里。这部分将在后面的 traverseNode 函数解释中一起说明。
+接口的主要说明就是上述内容。
 
-そして、より具体的な実装として、Element を変換するための transformElement であったり、式を変換するための transformExpression などがあります。
-DirectiveTransform の実装としては各ディレクティブの実装が存在しています。
-これらの実装は compiler-core/src/transforms に実装されています。具体的なそれぞれの変換処理はここに実装されます。
+更具体的实现包括用于转换元素的 transformElement、用于转换表达式的 transformExpression 等。
+DirectiveTransform 的实现则是各种指令的实现。
+这些实现在 compiler-core/src/transforms 中。具体的转换处理就实现在这里。
 
 https://github.com/vuejs/core/tree/37a14a5dae9999bbe684c6de400afc63658ffe90/packages/compiler-core/src/transforms
 
-イメージ ↓
+示意图 ↓
 
 ```mermaid
 classDiagram
@@ -227,8 +227,8 @@ DirectiveTransform <|.. transformIf
 DirectiveTransform <|.. other_directive_transformers
 ```
 
-次に context についてですが、TransformContext にはこれらの transform の際に扱う情報や関数を持ちます。  
-今後また追加されていきますが、初めはこれだけで Ok です。
+关于 context，TransformContext 包含转换过程中使用的信息和函数。  
+以后会有更多添加，但现在只需要这些：
 
 ```ts
 export interface TransformContext extends Required<TransformOptions> {
@@ -238,12 +238,12 @@ export interface TransformContext extends Required<TransformOptions> {
 }
 ```
 
-## Transformer の実装
+## Transformer 的实现
 
-それでは、実際に transform 関数を見ていきます。まずはそれぞれの変換処理の内容に寄らない大枠の説明からです。
+现在，让我们来看看 transform 函数的实际实现。首先从不依赖于具体转换处理的大框架开始。
 
-構成は非常にシンプルで、context を生成して traverseNode するだけです。
-この traverseNode が変換の実装本体です。
+结构非常简单，创建 context 并调用 traverseNode。
+traverseNode 是转换的核心实现。
 
 ```ts
 export function transform(root: RootNode, options: TransformOptions) {
@@ -252,9 +252,9 @@ export function transform(root: RootNode, options: TransformOptions) {
 }
 ```
 
-traverseNode では、基本的には context に保存してある nodeTransforms (Node を変換するための関数を集めたもの)を node に適応するだけです。  
-子 Node を持つものに関しては子 Node も traverseNode を通してあげます。  
-インタフェースの説明時に登場した onExit もここに実装があります。
+在 traverseNode 中，基本上只是对节点应用存储在 context 中的 nodeTransforms（用于转换节点的函数集合）。  
+对于有子节点的节点，也会对子节点调用 traverseNode。  
+接口说明中提到的 onExit 也在这里实现。
 
 ```ts
 export function traverseNode(
@@ -264,11 +264,11 @@ export function traverseNode(
   context.currentNode = node
 
   const { nodeTransforms } = context
-  const exitFns = [] // transform後に行いたい処理
+  const exitFns = [] // 转换后要执行的处理
   for (let i = 0; i < nodeTransforms.length; i++) {
     const onExit = nodeTransforms[i](node, context)
 
-    // transform後に行いたい処理を登録しておく
+    // 注册转换后要执行的处理
     if (onExit) {
       if (isArray(onExit)) {
         exitFns.push(...onExit)
@@ -294,10 +294,10 @@ export function traverseNode(
 
   context.currentNode = node
 
-  // transform後に行いたい処理を実行
+  // 执行转换后的处理
   let i = exitFns.length
   while (i--) {
-    exitFns[i]() // transformが終わったことを前提にした処理を実行することができる
+    exitFns[i]() // 可以执行那些假设转换已经完成的处理
   }
 }
 
@@ -315,9 +315,9 @@ export function traverseChildren(
 }
 ```
 
-続いて具体的な変換処理についてですが、今回は例として transformElement を実装してみます。
+接下来是具体的转换处理，这次我们将实现 transformElement 作为示例。
 
-transformElement では主に NodeTypes.ELEMENT の node を VNodeCall に変換していきます。
+transformElement 主要将 NodeTypes.ELEMENT 类型的节点转换为 VNodeCall。
 
 ```ts
 export interface ElementNode extends Node {
@@ -329,7 +329,7 @@ export interface ElementNode extends Node {
   codegenNode: VNodeCall | SimpleExpressionNode | undefined
 }
 
-// ↓↓↓↓↓↓ 変換 ↓↓↓↓↓↓ //
+// ↓↓↓↓↓↓ 转换 ↓↓↓↓↓↓ //
 
 export interface VNodeCall extends Node {
   type: NodeTypes.VNODE_CALL
@@ -342,8 +342,8 @@ export interface VNodeCall extends Node {
 }
 ```
 
-ただのオブジェクト to オブジェクトの変換ですので、それほど難しいものではないと思います。実際にソースコードを読んだりして実装してみましょう。  
-一応今回想定するコードは以下に貼っておきます。(ディレクティブの対応は別のチャプターで行います。)
+这是对象到对象的转换，应该不会太难。我们可以阅读源代码并尝试实现。  
+以下是我们这次将要实现的代码（指令的支持将在其他章节中处理）：
 
 ```ts
 export const transformElement: NodeTransform = (node, context) => {
@@ -422,15 +422,15 @@ export function buildProps(node: ElementNode): {
 }
 ```
 
-## Transform した AST をもとに Codegen する
+## 基于转换后的 AST 进行 Codegen
 
-AST を Codegen 用に Transform したわけですから、Codegen の方ももちろん対応する必要があります。
-Codegen に入ってくる AST としては主に VNodeClass (とそれらが持つ Node)を想定したコードを書けば OK です。
-最終的にどのような文字列として generate したいかは今までと変わりありません。
+既然我们已经将 AST 转换为适合 Codegen 的形式，我们也需要相应地调整 Codegen。
+Codegen 接收的 AST 主要是 VNodeClass（及其包含的节点），我们需要编写代码以适应这种情况。
+我们希望生成的最终字符串与之前相同。
 
-既存の Codegen は非常に簡素な実装になっているので、ここでもう少し形式的にしておきましょう。(結構ハードコードになっているので)  
-Codegen の方でも Codegen 用の context を持つことにして、生成したコードをそこに push していくような構成にしてみようと思います。  
-ついでに、context の方に幾つかのヘルパー関数を実装してみます。 (インデント系とか)
+现有的 Codegen 实现非常简单，所以在这里让我们使其更加规范一些（因为目前有很多硬编码的部分）。  
+在 Codegen 中，我们也将使用 Codegen 专用的 context，并将生成的代码推送到其中。  
+同时，我们也将在 context 中实现一些辅助函数（如缩进等）
 
 ```ts
 export interface CodegenContext {
@@ -447,9 +447,9 @@ export interface CodegenContext {
 }
 ```
 
-実装内容についてはここでは割愛しますが、それぞれの役割ごとに関数を分けただけで、実装方針の大きな変更はありません。
-ディレクティブについてはまだ対応できていないため、その辺りの仮実装を消した兼ね合いで動いていない部分もありますが、
-概ね以下のようなコードが動いていれば OK です！
+关于实现细节，这里不详细说明，但基本上只是将功能按照各自的角色分成不同的函数，没有大的实现策略变化。
+由于我们还没有实现指令的支持，所以有些临时实现已被移除，可能有些部分还不能工作，
+但如果以下代码能够运行，那就没问题！
 
 ```ts
 import { createApp, defineComponent, ref } from 'chibivue'
@@ -473,5 +473,5 @@ const app = createApp(App)
 app.mount('#app')
 ```
 
-当前源代码位于:  
-[chibivue (GitHub)](https://github.com/Ubugeeei/chibivue/tree/main/book/impls/50_basic_template_compiler/010_transformer)
+到此为止的源代码:  
+[chibivue (GitHub)](https://github.com/chibivue-land/chibivue/tree/main/book/impls/50_basic_template_compiler/010_transformer) 
